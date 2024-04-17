@@ -30,14 +30,14 @@ Before running any code from this repo you have to:
 2. **Download CARLA 0.9.15** from their GitHub repo, [here](https://github.com/carla-simulator/carla/releases/tag/0.9.15/) 
    where you can find precompiled binaries which are ready-to-use. Refer to [carla-quickstart](https://carla.readthedocs.io/en/latest/start_quickstart/)
    for more information.
-3. **Install CARLA Python bindings** in order to be able to manage CARLA from Python code. Make sure to use Anaconda Virtual Envoriments, open your terminal and type:
+3. **Install CARLA Python bindings** in order to be able to manage CARLA from Python code. Make sure to use Anaconda Virtual Envoriment, open your terminal and type:
 ```
  pip3 install carla
 ```
 
 4. Before running the repository's code be sure to start CARLA first:
-- Windows: your-path-to/CARLA_0.9.9.15/WindowsNoEditor/CarlaUE4.exe
-- Linux: your-path-to/CARLA_0.9.9.15/./CarlaUE4.sh
+- Windows: your-path-to/CARLA_0.9.15/WindowsNoEditor/CarlaUE4.exe
+- Linux: your-path-to/CARLA_0.9.15/./CarlaUE4.sh
 - [optional] To use less resources add these flags to the previous command: -windowed -ResX=32 -ResY=32 --quality-level=Low. For example ./CarlaUE4.sh --quality-level=Low.
 
 
