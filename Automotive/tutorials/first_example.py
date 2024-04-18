@@ -10,6 +10,7 @@ def main():
 
     # Load a map
     world = client.load_world('Town03')
+
     if not world:
         print("CARLA world not available. Please check the CARLA server.")
         return
