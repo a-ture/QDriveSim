@@ -4,7 +4,6 @@ Esecuzione delle istruzioni della sezione "Fist Step" della documentazione di CA
 import carla
 import random
 
-
 """
 Per muoversi all'interno del client usiamo i seguenti tasti della tastiera: 
 Q - move upwards (towards the top edge of the window)
@@ -18,6 +17,7 @@ D - move right
 """
 import carla
 import random
+
 
 def main():
     # Connect to the CARLA server
@@ -60,6 +60,7 @@ def main():
     camera.destroy()
     ego_vehicle.destroy()
     print("Simulation ended and cleaned up.")
+
 
 if __name__ == '__main__':
     main()

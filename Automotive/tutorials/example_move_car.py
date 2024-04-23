@@ -1,6 +1,7 @@
 import carla
-import time
+
 import random
+
 
 def main():
     try:
@@ -58,6 +59,7 @@ def main():
         world.apply_settings(settings)
         if vehicle is not None:
             vehicle.destroy()
+
 
 if __name__ == '__main__':
     main()
