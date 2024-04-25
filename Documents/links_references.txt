@@ -1,0 +1,5 @@
+-- https://www.youtube.com/watch?v=MNiqlHC6Kn4: esempio di agente Deep Q-Learning
+-- https://carla.readthedocs.io/en/latest/python_api/#carla.VehicleControl: descrizione di come dare i comandi alla macchina
+-- https://github.com/Luca96/carla-driving-rl-agent: progetto di partenza
+-- https://github.com/carla-simulator/carla/issues/36: funzionamento autopilot versione precedente
+-- https://github.com/lucamocerino/Binary-Neural-Networks-PyTorch-1.0: rete binaria con PyTorch 
