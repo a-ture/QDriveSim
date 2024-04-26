@@ -1,0 +1,77 @@
+# VIDEO CARLA PARTE 1
+
+Abbiamo una macchina in un ambiente e dobbiamo collezionare immagini per imparare come girare il volante (strir), abbiamo in input una immagine, dobbiamo processarla e darla in pasto alla NN e dobbiamo dare in output i comandi di sterzata. Ci sono determinate limitazioni in base alle immagini e ci sono dati da cui imparare quando andiamo a lavorare con gli agents. 
+
+Il massimo grado di sterzata va da -1(sinistra) a 1 (destra) mentre se il volante rimane fermo ottiene un valore di 0, l’angolo di sterzata prenderà valori compresi quindi tra -1 e +1. Dobbiamo discretizzare queste azioni perché in output dobbiamo avere uno stato e delle operazioni.
+
+dobbiamo definire quindi stato, azioni e reward function :
+
+## Reward Function
+
+Controlla se possiamo imparare in maniera efficiente o meno in base alle azioni e allo stato
+
+dobbiamo controllare :
+
+- angolo tra la macchina e la tangente alla strada $\theta$
+- la distanza tra la macchina e la strada $d$
+- la presenza di una collisione e meno 
+
+Vogliamo che :
+
+
+- vogliamo che l’angolo sia il più piccolo possibile
+    - Nella reward fuction potremmo dire che $\lambda_1 * cos(\theta)$, la prima componente rappresenta il peso che noi daremo a tale metrica (rappresenta la sua importanza)
+        - l’idea è che se ci spostiamo verso la tangente della strada, il cos è 1, ovvero è orientata nella stessa direzione in cui dovrebbe andare, quindi la sua reward è 1, quindi diamo una grande ricompensa, ed in base ai vari angoli varia fino ad avere un valore di 0 per angoli di 90 e -1 per 180
+- vogliamo che la distanza sia piccola
+    - possiamo definire determinati punti con CARLA definiti come punti-direzione(way points) e se la macchina sta percorrendo il suo percorso ideale, la distanza con questi punti sarà quanto più piccola possibile, altrimenti sarà alta
+- vogliamo che la collisione sia nulla
+
+$r = \lambda_1  cos\theta - \lambda_2 |d| - \lambda_3c$
+
+se il valore risulta essere piccolo allora vorrà dire che :
+
+- la macchina non si trova al centro della corsia
+- non sta andando nella direzione prestabilita
+- la macchina ha causato o subito collisioni
+
+Inverse RL con il quale andiamo a capire la rf con dei raccoglitori di dati
+
+# IMAGE PROCESSING
+
+Dobbiamo prima processare informazioni per poterle inviare alla NN e poi avere delle operazioni di sterzata.
+
+Abbiamo in input l’immagine di dimensione 800 X 600 X 3, convertiamo in scala di grigio per avere un’immagine di un solo canale di taglia 800 X 600 per poi fasre un resize di 128 X 128. 
+
+I valori saranno tra 1-255 e li dividiamo per 255 per avere un’immagine che ha valori tra 0 e 1 e la normalizziamo per poi avere un’immagine tra valori di -1 e +1
+
+# ARCHITETTURA DELLA NN
+
+la prima cosa che si deve definire è l’ambiente e poi dobbiamo definire la rete del comportamento ed infine la target network
+
+Dall’ambiente dobbiamo inviare uno stato $s$ (una immagine) e la rete del comportamento darà in output l’azione che si dovrebbe avere in base ad una policy, da questo avremo un loop di inferenza. Il replay buffer riceve la sere s a r s’ e durante il training noi andiamo ad avere dei samples (esempi di azioni) che mandiamo la rete di comportamento con la quale potremmo decidere comportamenti e che darà una reward
+
+Un altro output della rete di comportamento sono Q(s,a’,$\theta$) mentre l’output della target network avremo Q(s, a’, $\theta$), tali dati verranno inviati copiando l’output della rete di comportamento ogni $t$ steps, che unita alla reward servirà a calcolare la loss che verrà definita dalla differenza tra lo stato successivo avuto con l’azione migliore possibile e lo stato precedente
+
+# PARAMETRI
+
+Dobbiamo avere un’appropriata rappresentazione dello stage e dobbiamo definire la RF con le sue componenti e l’action space dalla quale prenderà decisioni sull’azione da prendere, il discount e la copy operation, il replay buffer (tipo e taglia e quanto spesso dovremmo prendere samples)
+
+Per la NN dobbiamo decidere :
+
+- architettura (numero di layer e di neuroni)
+- optimizer
+- percentuale di apprendimento
+- funzione
+
+
+
+
+
+
+
+
+
+
+
+
+
