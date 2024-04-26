@@ -2,6 +2,7 @@ import glob
 import os
 import sys
 
+# Aggiunge al percorso di sistema il percorso del modulo carla
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -12,6 +13,7 @@ except IndexError:
 
 import carla
 import queue
+
 
 class CarlaSyncMode(object):
     """
@@ -34,17 +36,20 @@ class CarlaSyncMode(object):
         self.collisions = []
 
     def __enter__(self):
+        # Salva le impostazioni correnti del mondo e imposta la modalità di rendering
         self._settings = self.world.get_settings()
         self.frame = self.world.apply_settings(carla.WorldSettings(
             no_rendering_mode=False,
             synchronous_mode=True,
             fixed_delta_seconds=self.delta_seconds))
 
+        # Crea code per ciascun sensore e le aggiunge alla lista delle code
         def make_queue(register_event):
             q = queue.Queue()
             register_event(q.put)
             self._queues.append(q)
 
+        # Registra le code per gli eventi di tick del mondo e per i dati di ciascun sensore
         make_queue(self.world.on_tick)
         for sensor in self.sensors:
             make_queue(sensor.listen)
@@ -52,11 +57,14 @@ class CarlaSyncMode(object):
 
     def tick(self, timeout):
         try:
+            # Esegue un tick del mondo
             self.frame = self.world.tick()
+            # Recupera i dati da ciascuna coda dei sensori
             data = [self._retrieve_data(q, timeout) for q in self._queues[:-1]]
-            # collision sensor is the last element in the queue
+            # Il sensore di collisione è l'ultimo elemento nella lista delle code
             collision = self._detect_collision(self._queues[-1])
-            
+
+            # Verifica che tutti i dati abbiano lo stesso frame
             assert all(x.frame == self.frame for x in data)
 
             return data + [collision]
@@ -65,16 +73,19 @@ class CarlaSyncMode(object):
             return None, None, None
 
     def __exit__(self, *args, **kwargs):
+        # Ripristina le impostazioni originali del mondo alla fine del contesto
         self.world.apply_settings(self._settings)
 
     def _retrieve_data(self, sensor_queue, timeout):
+        # Recupera i dati dalla coda del sensore
         while True:
             data = sensor_queue.get(timeout=timeout)
             if data.frame == self.frame:
                 return data
-    
+
     def _detect_collision(self, sensor):
-        # This collision is not fully aligned with other sensors, fix later
+        # Rileva una collisione
+        # Questa funzione non è completamente allineata con gli altri sensori, da correggere in futuro
         try:
             data = sensor.get(block=False)
             return data

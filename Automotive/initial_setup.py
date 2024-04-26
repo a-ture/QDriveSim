@@ -1,5 +1,5 @@
 from utils import create_folders
 
-# automatically creates folders that may not exist, or ignores if they do
-folders = ['weights']
+# Crea automaticamente le cartelle specificate se non esistono, altrimenti le ignora
+folders = ['weights']  # Lista delle cartelle da creare
 create_folders(folders)

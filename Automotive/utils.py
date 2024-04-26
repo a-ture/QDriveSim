@@ -5,45 +5,44 @@ import math
 import numpy as np
 
 def process_img(image, dim_x=128, dim_y=128):
-    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-    array = np.reshape(array, (image.height, image.width, 4))
-    array = array[:, :, :3]
-    array = array[:, :, ::-1]
+    # Processa l'immagine ricevuta da Carla
+    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))  # Converte i dati dell'immagine in un array numpy
+    array = np.reshape(array, (image.height, image.width, 4))  # Ridimensiona l'array secondo le dimensioni dell'immagine
+    array = array[:, :, :3]  # Seleziona solo i canali RGB, scartando l'alpha
+    array = array[:, :, ::-1]  # Inverte l'ordine dei canali per adattarsi alla convenzione BGR di OpenCV
 
-    # scale_percent = 25
-    # width = int(array.shape[1] * scale_percent/100)
-    # height = int(array.shape[0] * scale_percent/100)
+    dim = (dim_x, dim_y)  # Dimensioni desiderate per l'immagine
+    resized_img = cv2.resize(array, dim, interpolation=cv2.INTER_AREA)  # Ridimensiona l'immagine
+    img_gray = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)  # Converte l'immagine in scala di grigi
+    scaledImg = img_gray/255.  # Scala i valori dei pixel nell'intervallo [0, 1]
 
-    # dim = (width, height)
-    dim = (dim_x, dim_y)  # set same dim for now
-    resized_img = cv2.resize(array, dim, interpolation=cv2.INTER_AREA)
-    img_gray = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
-    scaledImg = img_gray/255.
-
-    # normalize
+    # Normalizza l'immagine
     mean, std = 0.5, 0.5
     normalizedImg = (scaledImg - mean) / std
 
     return normalizedImg
 
 def draw_image(surface, image, blend=False):
-    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-    array = np.reshape(array, (image.height, image.width, 4))
-    array = array[:, :, :3]
-    array = array[:, :, ::-1]
-    image_surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+    # Disegna un'immagine su una superficie di Pygame
+    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))  # Converte i dati dell'immagine in un array numpy
+    array = np.reshape(array, (image.height, image.width, 4))  # Ridimensiona l'array secondo le dimensioni dell'immagine
+    array = array[:, :, :3]  # Seleziona solo i canali RGB, scartando l'alpha
+    array = array[:, :, ::-1]  # Inverte l'ordine dei canali per adattarsi alla convenzione BGR di Pygame
+    image_surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))  # Crea una superficie di Pygame dall'array
     if blend:
-        image_surface.set_alpha(100)
-    surface.blit(image_surface, (0, 0))
+        image_surface.set_alpha(100)  # Imposta la trasparenza dell'immagine se richiesto
+    surface.blit(image_surface, (0, 0))  # Disegna l'immagine sulla superficie di Pygame
 
 def get_font():
-    fonts = [x for x in pygame.font.get_fonts()]
-    default_font = 'ubuntumono'
-    font = default_font if default_font in fonts else fonts[0]
-    font = pygame.font.match_font(font)
-    return pygame.font.Font(font, 14)
+    # Restituisce un font di Pygame
+    fonts = [x for x in pygame.font.get_fonts()]  # Ottiene la lista dei font disponibili
+    default_font = 'ubuntumono'  # Font predefinito
+    font = default_font if default_font in fonts else fonts[0]  # Se il font predefinito non è disponibile, usa il primo della lista
+    font = pygame.font.match_font(font)  # Trova il percorso del font
+    return pygame.font.Font(font, 14)  # Crea il font e imposta la dimensione a 14
 
 def should_quit():
+    # Controlla se l'utente vuole chiudere il programma
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             return True
@@ -54,19 +53,21 @@ def should_quit():
 
 def get_speed(vehicle):
     """
-    Compute speed of a vehicle in Km/h.
-        :param vehicle: the vehicle for which speed is calculated
-        :return: speed as a float in Km/h
+    Calcola la velocità di un veicolo in Km/h.
+        :param vehicle: il veicolo di cui calcolare la velocità
+        :return: la velocità come float in Km/h
     """
-    vel = vehicle.get_velocity()
+    vel = vehicle.get_velocity()  # Ottiene la velocità del veicolo
 
-    return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
+    return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)  # Calcola la velocità totale in Km/h
 
 def correct_yaw(x):
+    # Corregge l'angolo di yaw (orientamento) portandolo nell'intervallo [0, 360)
     return(((x%360) + 360) % 360)
 
 def create_folders(folder_names):
+    # Crea le cartelle specificate se non esistono già
     for directory in folder_names:
         if not os.path.exists(directory):
-                # If it doesn't exist, create it
-                os.makedirs(directory)
+            # Se non esiste, crea la cartella
+            os.makedirs(directory)
