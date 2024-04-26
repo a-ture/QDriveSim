@@ -16,16 +16,26 @@ def main():
         blueprint_library = world.get_blueprint_library()
         vehicle_bp = blueprint_library.find('vehicle.audi.a2')
         spawn_point = random.choice(world.get_map().get_spawn_points())
-        vehicle = world.spawn_actor(vehicle_bp, spawn_point)
+        ego_vehicle = world.spawn_actor(vehicle_bp, spawn_point)
 
         spectator = world.get_spectator()
 
+        # Attacca una telecamera
+        cameras = []
+        cam_bp = blueprint_library.find('sensor.camera.rgb')
+        cam_bp.set_attribute("image_size_x", "800")
+        cam_bp.set_attribute("image_size_y", "600")
+        cam_location = carla.Transform(carla.Location(x=1.5, z=2.4))
+        camera = world.spawn_actor(cam_bp, cam_location, attach_to=ego_vehicle)
+        cameras.append(camera)
+        camera.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame))
+
         # Inizializza il veicolo con un comando di accelerazione
-        vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0.0, brake=0.0))
+        ego_vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0.0, brake=0.0))
 
         for _ in range(800):  # circa 40 secondi
             world.tick()
-            vehicle_transform = vehicle.get_transform()
+            vehicle_transform = ego_vehicle.get_transform()
 
             # Aggiorna la posizione dello spectator
             spectator_transform = carla.Transform(
@@ -44,20 +54,20 @@ def main():
 
             # Decide di girare a sinistra dopo 10 secondi e a destra dopo 20 secondi
             if _ == 200:  # Dopo 10 secondi
-                vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=-0.5, brake=0.0))
+                ego_vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=-0.5, brake=0.0))
             elif _ == 400:  # Dopo 20 secondi
-                vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0.5, brake=0.0))
+                ego_vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0.5, brake=0.0))
             elif _ == 600:  # Dopo 30 secondi, torna dritto
-                vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0.0, brake=0.0))
+                ego_vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0.0, brake=0.0))
 
-        vehicle.apply_control(carla.VehicleControl(brake=1.0))
+        ego_vehicle.apply_control(carla.VehicleControl(brake=1.0))
         world.tick()
 
     finally:
         settings.synchronous_mode = False
         world.apply_settings(settings)
-        if vehicle is not None:
-            vehicle.destroy()
+        if ego_vehicle is not None:
+            ego_vehicle.destroy()
 
 
 if __name__ == '__main__':
