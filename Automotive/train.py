@@ -1,15 +1,8 @@
-import torch  # Importa PyTorch, una libreria per il machine learning
+import torch
 
-# Importa la classe ReplayBuffer dalla cartella DQN_Control
 from DQN_Control.replay_buffer import ReplayBuffer
-# Importa la classe DQN dalla cartella DQN_Control
 from DQN_Control.model import DQN
-
-# Importa action_map ed env_params dalla configurazione
 from config import action_map, env_params
-# Importa funzioni di utilità dalla cartella utils
-from utils import *
-# Importa la classe SimEnv dall'ambiente
 from environment import SimEnv
 
 
@@ -17,14 +10,15 @@ from environment import SimEnv
 def run():
     try:
         # Definizione dei parametri
-        buffer_size = 1e4  # Dimensione del replay buffer
+        buffer_size = 1e4  # Dimensione del replay buffer+
         batch_size = 32  # Dimensione del batch per l'addestramento
         state_dim = (128, 128)  # Dimensione dello stato (immagine 128x128)
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se
         # disponibile, altrimenti CPU)
         num_actions = len(action_map)  # Numero di azioni disponibili
-        in_channels = 1  # Numero di canali dell'immagine (scala di grigi)
+
+        in_channels = 3  # Numero di canali dell'immagine (scala di grigi)
 
         # Creazione del replay buffer
         replay_buffer = ReplayBuffer(state_dim, batch_size, buffer_size, device)
@@ -36,7 +30,7 @@ def run():
         env = SimEnv(visuals=False, **env_params)
 
         # Ciclo di addestramento per un numero di episodi definito
-        episodes = 10000
+        episodes = 1500
         for ep in range(episodes):
             # Creazione degli attori nell'ambiente
             env.create_actors()
@@ -51,5 +45,4 @@ def run():
 
 # Esecuzione della funzione run() se questo modulo è eseguito come script principale
 if __name__ == "__main__":
-
     run()

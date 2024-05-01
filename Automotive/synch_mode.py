@@ -59,18 +59,23 @@ class CarlaSyncMode(object):
         try:
             # Esegue un tick del mondo
             self.frame = self.world.tick()
+
             # Recupera i dati da ciascuna coda dei sensori
-            data = [self._retrieve_data(q, timeout) for q in self._queues[:-1]]
-            # Il sensore di collisione è l'ultimo elemento nella lista delle code
-            collision = self._detect_collision(self._queues[-1])
+            data = [self._retrieve_data(q, timeout) for q in self._queues[:-2]]
 
             # Verifica che tutti i dati abbiano lo stesso frame
             assert all(x.frame == self.frame for x in data)
 
-            return data + [collision]
+            # Rileva le invasioni di corsia
+            lane_invasion = self._detect_lane_invasion(self._queues[-2])
+
+            # Rileva le collisioni
+            collision = self._detect_collision(self._queues[-1])
+
+            return data + [lane_invasion, collision]
         except queue.Empty:
-            print("empty queue")
-            return None, None, None, None
+            print("Empty queue")
+            return None
 
     def __exit__(self, *args, **kwargs):
         # Ripristina le impostazioni originali del mondo alla fine del contesto
@@ -84,6 +89,15 @@ class CarlaSyncMode(object):
                 return data
 
     def _detect_collision(self, sensor):
+        # Rileva una collisione
+        # Questa funzione non è completamente allineata con gli altri sensori, da correggere in futuro
+        try:
+            data = sensor.get(block=False)
+            return data
+        except queue.Empty:
+            return None
+
+    def _detect_lane_invasion(self, sensor):
         # Rileva una collisione
         # Questa funzione non è completamente allineata con gli altri sensori, da correggere in futuro
         try:

@@ -2,7 +2,6 @@ import glob
 import os
 import sys
 
-
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -13,7 +12,6 @@ except IndexError:
 
 import carla
 import random
-
 
 from synch_mode import CarlaSyncMode
 from controllers import PIDLongitudinalController
@@ -33,6 +31,13 @@ class SimEnv(object):
                  start_ep=401,
                  max_dist_from_waypoint=20
                  ) -> None:
+        self.lane_invasion_sensor = None
+        self.speed_controller = None
+        self.camera_rgb_vis = None
+        self.vehicle = None
+        self.actor_list = None
+        self.camera_rgb = None
+        self.collision_sensor = None
         self.visuals = visuals
         if self.visuals:
             self._initiate_visuals()
@@ -95,6 +100,13 @@ class SimEnv(object):
             attach_to=self.vehicle)
         self.actor_list.append(self.camera_rgb_vis)
 
+        self.lane_invasion_sensor = self.world.spawn_actor(
+            self.blueprint_library.find('sensor.other.lane_invasion'),
+            carla.Transform(),
+            attach_to=self.vehicle
+        )
+        self.actor_list.append(self.lane_invasion_sensor)
+
         self.collision_sensor = self.world.spawn_actor(
             self.blueprint_library.find('sensor.other.collision'),
             carla.Transform(),
@@ -109,11 +121,11 @@ class SimEnv(object):
             actor.destroy()
 
     def generate_episode(self, model, replay_buffer, ep, action_map=None, eval=True):
-        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.collision_sensor,
-                           fps=30) as sync_mode:
+        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,
+                           self.lane_invasion_sensor,self.collision_sensor, fps=30) as sync_mode:
             counter = 0
 
-            snapshot, image_rgb, image_rgb_vis, collision = sync_mode.tick(timeout=3.0)
+            snapshot, image_rgb, image_rgb_vis, lane_invasion, collision = sync_mode.tick(timeout=1.0)
 
             # destroy if there is no data
             if snapshot is None or image_rgb is None:
@@ -154,7 +166,8 @@ class SimEnv(object):
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
-                snapshot, image_rgb, image_rgb_vis, collision = sync_mode.tick(timeout=3.0)
+                # TODO pensare a come usare in maniera intelligente i sensori
+                snapshot, image_rgb, image_rgb_vis, lane_invasion, collision = sync_mode.tick(timeout=3.0)
 
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
                 reward = reward_value(cos_yaw_diff, dist, collision)
