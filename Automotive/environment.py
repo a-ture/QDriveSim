@@ -31,6 +31,8 @@ class SimEnv(object):
                  start_ep=401,
                  max_dist_from_waypoint=20
                  ) -> None:
+        self.lidar_sensor = None
+        self.camera_depth = None
         self.lane_invasion_sensor = None
         self.speed_controller = None
         self.camera_rgb_vis = None
@@ -88,6 +90,7 @@ class SimEnv(object):
         self.vehicle = self.world.spawn_actor(self.vehicle_blueprint, random.choice(self.spawn_points))
         self.actor_list.append(self.vehicle)
 
+        # Sensori RGB
         self.camera_rgb = self.world.spawn_actor(
             self.blueprint_library.find('sensor.camera.rgb'),
             carla.Transform(carla.Location(x=1.5, z=2.4), carla.Rotation(pitch=-15)),
@@ -100,20 +103,34 @@ class SimEnv(object):
             attach_to=self.vehicle)
         self.actor_list.append(self.camera_rgb_vis)
 
+        # Sensore di profondità
+        self.camera_depth = self.world.spawn_actor(
+            self.blueprint_library.find('sensor.camera.depth'),
+            carla.Transform(carla.Location(x=0.5, z=2.4), carla.Rotation(pitch=-15)),
+            attach_to=self.vehicle)
+        self.actor_list.append(self.camera_depth)
+
+        # Sensore Lidar per rilevare gli ostacoli
+        self.lidar_sensor = self.world.spawn_actor(
+            self.blueprint_library.find('sensor.lidar.ray_cast'),
+            carla.Transform(carla.Location(z=2.4)),  # Posizione in cui viene montato il Lidar
+            attach_to=self.vehicle)
+        self.actor_list.append(self.lidar_sensor)
+
+        # Sensori per l'invasione di corsia e la collisione
         self.lane_invasion_sensor = self.world.spawn_actor(
             self.blueprint_library.find('sensor.other.lane_invasion'),
             carla.Transform(),
-            attach_to=self.vehicle
-        )
+            attach_to=self.vehicle)
         self.actor_list.append(self.lane_invasion_sensor)
 
         self.collision_sensor = self.world.spawn_actor(
             self.blueprint_library.find('sensor.other.collision'),
             carla.Transform(),
-            attach_to=self.vehicle
-        )
+            attach_to=self.vehicle)
         self.actor_list.append(self.collision_sensor)
 
+        # Controllore PID
         self.speed_controller = PIDLongitudinalController(self.vehicle)
 
     def reset(self):
@@ -121,11 +138,11 @@ class SimEnv(object):
             actor.destroy()
 
     def generate_episode(self, model, replay_buffer, ep, action_map=None, eval=True):
-        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,
+        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,self.camera_depth, self.lidar_sensor,
                            self.lane_invasion_sensor,self.collision_sensor, fps=30) as sync_mode:
             counter = 0
 
-            snapshot, image_rgb, image_rgb_vis, lane_invasion, collision = sync_mode.tick(timeout=1.0)
+            snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, lane_invasion, collision = sync_mode.tick(timeout=1.0)
 
             # destroy if there is no data
             if snapshot is None or image_rgb is None:
@@ -167,7 +184,7 @@ class SimEnv(object):
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
                 # TODO pensare a come usare in maniera intelligente i sensori
-                snapshot, image_rgb, image_rgb_vis, lane_invasion, collision = sync_mode.tick(timeout=3.0)
+                snapshot, image_rgb, image_rgb_vis, camera_depth,lidar, lane_invasion, collision = sync_mode.tick(timeout=1.0)
 
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
                 reward = reward_value(cos_yaw_diff, dist, collision)
