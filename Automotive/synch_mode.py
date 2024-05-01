@@ -70,7 +70,7 @@ class CarlaSyncMode(object):
             return data + [collision]
         except queue.Empty:
             print("empty queue")
-            return None, None, None
+            return None, None, None, None
 
     def __exit__(self, *args, **kwargs):
         # Ripristina le impostazioni originali del mondo alla fine del contesto

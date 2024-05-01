@@ -3,6 +3,7 @@ import torch  # Importa PyTorch, una libreria per il machine learning
 import numpy as np  # Importa NumPy, una libreria per il calcolo numerico
 from torchvision import transforms  # Importa il modulo torchvision per trasformazioni delle immagini
 
+
 class ReplayBuffer(object):
     def __init__(self, state_dim, batch_size, buffer_size, device) -> None:
         # Inizializza il ReplayBuffer
@@ -43,6 +44,7 @@ class ReplayBuffer(object):
             torch.FloatTensor(self.reward[ind]).to(self.device),
             torch.FloatTensor(self.done[ind]).to(self.device)
         )
+
 
 def test_buffer():
     # Funzione di test per il ReplayBuffer

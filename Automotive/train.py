@@ -5,7 +5,7 @@ from DQN_Control.replay_buffer import ReplayBuffer
 # Importa la classe DQN dalla cartella DQN_Control
 from DQN_Control.model import DQN
 
-# Importa action_map e env_params dalla configurazione
+# Importa action_map ed env_params dalla configurazione
 from config import action_map, env_params
 # Importa funzioni di utilità dalla cartella utils
 from utils import *
@@ -21,7 +21,8 @@ def run():
         batch_size = 32  # Dimensione del batch per l'addestramento
         state_dim = (128, 128)  # Dimensione dello stato (immagine 128x128)
         device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se disponibile, altrimenti CPU)
+            "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se
+        # disponibile, altrimenti CPU)
         num_actions = len(action_map)  # Numero di azioni disponibili
         in_channels = 1  # Numero di canali dell'immagine (scala di grigi)
 
@@ -50,4 +51,5 @@ def run():
 
 # Esecuzione della funzione run() se questo modulo è eseguito come script principale
 if __name__ == "__main__":
+
     run()

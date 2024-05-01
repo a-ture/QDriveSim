@@ -16,7 +16,8 @@ import numpy as np
 from collections import deque
 from utils import get_speed
 
-class PIDLongitudinalController():
+
+class PIDLongitudinalController:
     """
     PIDLongitudinalController implementa il controllo longitudinale utilizzando un PID.
     """
@@ -79,7 +80,8 @@ class PIDLongitudinalController():
             _de = 0.0
             _ie = 0.0
 
-        return np.clip((self._k_p * error) + (self._k_d * _de) + (self._k_i * _ie), -1.0, 1.0)  # Restituisce l'accelerazione/freno
+        return np.clip((self._k_p * error) + (self._k_d * _de) + (self._k_i * _ie), -1.0,
+                       1.0)  # Restituisce l'accelerazione/freno
 
     def change_parameters(self, K_P, K_I, K_D, dt):
         """Cambia i parametri del PID"""
