@@ -4,6 +4,7 @@ import torch  # Importa PyTorch, una libreria per il machine learning
 import torch.nn as nn  # Importa il modulo nn di PyTorch per definire reti neurali
 import torch.nn.functional as F  # Importa funzioni di attivazione e altre funzioni utili da nn.functional
 
+
 # Definizione della rete neurale convoluzionale (CNN)
 class ConvNet(nn.Module):
     def __init__(self, dim, in_channels, num_actions) -> None:
@@ -25,13 +26,19 @@ class ConvNet(nn.Module):
 
     def forward(self, x):
         # Passaggio in avanti attraverso la rete neurale
-        x = F.relu(self.conv1_bn(self.conv1(x)))  # Primo layer convoluzionale seguito da batch normalization e attivazione ReLU
-        x = F.relu(self.conv2_bn(self.conv2(x)))  # Secondo layer convoluzionale seguito da batch normalization e attivazione ReLU
-        x = F.relu(self.conv3_bn(self.conv3(x)))  # Terzo layer convoluzionale seguito da batch normalization e attivazione ReLU
-        x = F.relu(self.fc1_bn(self.fc1(x.reshape(-1, 64 * 8 * 8))))  # Primo layer fully connected seguito da batch normalization e attivazione ReLU
-        x = F.relu(self.fc2_bn(self.fc2(x)))  # Secondo layer fully connected seguito da batch normalization e attivazione ReLU
+        x = F.relu(self.conv1_bn(
+            self.conv1(x)))  # Primo layer convoluzionale seguito da batch normalization e attivazione ReLU
+        x = F.relu(self.conv2_bn(
+            self.conv2(x)))  # Secondo layer convoluzionale seguito da batch normalization e attivazione ReLU
+        x = F.relu(self.conv3_bn(
+            self.conv3(x)))  # Terzo layer convoluzionale seguito da batch normalization e attivazione ReLU
+        x = F.relu(self.fc1_bn(self.fc1(x.reshape(-1,
+                                                  64 * 8 * 8))))  # Primo layer fully connected seguito da batch normalization e attivazione ReLU
+        x = F.relu(
+            self.fc2_bn(self.fc2(x)))  # Secondo layer fully connected seguito da batch normalization e attivazione ReLU
         x = self.fc3(x)  # Output layer per i valori di azione
         return x
+
 
 # Definizione dell'algoritmo Deep Q-Network (DQN)
 class DQN(object):
@@ -50,6 +57,7 @@ class DQN(object):
             eps_decay_period=25e4,
             eval_eps=0.001
     ) -> None:
+        self.current_eps = None
         self.device = device  # Dispositivo su cui lavorare (CPU o GPU)
 
         # Rete neurale Q per approssimare la funzione Q
