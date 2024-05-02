@@ -2,6 +2,7 @@ import glob
 import os
 import sys
 
+# Aggiungi il percorso per importare i moduli di Carla
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -19,7 +20,7 @@ from utils import *
 
 random.seed(78)
 
-
+# Definizione della classe SimEnv
 class SimEnv(object):
     def __init__(self,
                  visuals=True,
@@ -31,6 +32,7 @@ class SimEnv(object):
                  start_ep=401,
                  max_dist_from_waypoint=20
                  ) -> None:
+        # Inizializzazione degli attributi
         self.lidar_sensor = None
         self.camera_depth = None
         self.lane_invasion_sensor = None
@@ -75,6 +77,7 @@ class SimEnv(object):
         self.total_rewards = 0
         self.average_rewards_list = []
 
+    # Inizializzazione delle finestre pygame per la visualizzazione
     def _initiate_visuals(self):
         pygame.init()
 
@@ -84,6 +87,7 @@ class SimEnv(object):
         self.font = get_font()
         self.clock = pygame.time.Clock()
 
+    # Creazione degli attori nell'ambiente
     def create_actors(self):
         self.actor_list = []
         # spawn vehicle at random location
@@ -133,10 +137,12 @@ class SimEnv(object):
         # Controllore PID
         self.speed_controller = PIDLongitudinalController(self.vehicle)
 
+    # Reimposta lo stato dell'ambiente
     def reset(self):
         for actor in self.actor_list:
             actor.destroy()
 
+    # Genera un episodio nell'ambiente
     def generate_episode(self, model, replay_buffer, ep, action_map=None, eval=True):
         with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,self.camera_depth, self.lidar_sensor,
                            self.lane_invasion_sensor,self.collision_sensor, fps=30) as sync_mode:
@@ -172,6 +178,7 @@ class SimEnv(object):
                 counter += 1
                 self.global_t += 1
 
+                #TODO cambiare la gestione delle azioni
                 action = model.select_action(state, eval=eval)
                 steer = action
                 if action_map is not None:
@@ -225,6 +232,7 @@ class SimEnv(object):
             if ep % self.save_freq == 0 and ep > 0:
                 self.save(model, ep)
 
+    # Salva i pesi del modello
     def save(self, model, ep):
         if ep % self.save_freq == 0 and ep > self.start_ep:
             avg_reward = self.total_rewards / self.save_freq
@@ -235,10 +243,12 @@ class SimEnv(object):
 
             print("Saved model with average reward =", avg_reward)
 
+    # Termina la visualizzazione Pygame
     def quit(self):
         pygame.quit()
 
 
+# Calcola i componenti della ricompensa
 def get_reward_comp(vehicle, waypoint, collision):
     vehicle_location = vehicle.get_location()
     x_wp = waypoint.transform.location.x
@@ -261,6 +271,7 @@ def get_reward_comp(vehicle, waypoint, collision):
     return cos_yaw_diff, dist, collision
 
 
+# Calcola il valore della ricompensa
 def reward_value(cos_yaw_diff, dist, collision, lambda_1=1, lambda_2=1, lambda_3=5):
     reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision)
     return reward
