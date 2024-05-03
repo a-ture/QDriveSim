@@ -20,6 +20,7 @@ from utils import *
 
 random.seed(78)
 
+
 # Definizione della classe SimEnv
 class SimEnv(object):
     def __init__(self,
@@ -33,6 +34,7 @@ class SimEnv(object):
                  max_dist_from_waypoint=20
                  ) -> None:
         # Inizializzazione degli attributi
+        self.segmentation_sensor = None
         self.lidar_sensor = None
         self.camera_depth = None
         self.lane_invasion_sensor = None
@@ -60,7 +62,7 @@ class SimEnv(object):
         self.spawn_points = self.world.get_map().get_spawn_points()
 
         self.blueprint_library = self.world.get_blueprint_library()
-        self.vehicle_blueprint = self.blueprint_library.find('vehicle.nissan.patrol')
+        self.vehicle_blueprint = self.blueprint_library.find('vehicle.tesla.model3')
 
         # input these later on as arguments
         self.global_t = 0  # global timestep
@@ -128,6 +130,13 @@ class SimEnv(object):
             attach_to=self.vehicle)
         self.actor_list.append(self.lane_invasion_sensor)
 
+        # Sensori per la segmentazione
+        self.segmentation_sensor = self.world.spawn_actor(
+            self.blueprint_library.find('sensor.camera.semantic_segmentation'),
+            carla.Transform(),
+            attach_to=self.vehicle)
+        self.actor_list.append(self.segmentation_sensor)
+
         self.collision_sensor = self.world.spawn_actor(
             self.blueprint_library.find('sensor.other.collision'),
             carla.Transform(),
@@ -144,11 +153,13 @@ class SimEnv(object):
 
     # Genera un episodio nell'ambiente
     def generate_episode(self, model, replay_buffer, ep, action_map=None, eval=True):
-        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,self.camera_depth, self.lidar_sensor,
-                           self.lane_invasion_sensor,self.collision_sensor, fps=30) as sync_mode:
+        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.camera_depth, self.lidar_sensor,
+                           self.segmentation_sensor, self.lane_invasion_sensor, self.collision_sensor,
+                           fps=30) as sync_mode:
             counter = 0
 
-            snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, lane_invasion, collision = sync_mode.tick(timeout=1.0)
+            snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+                timeout=1.0)
 
             # destroy if there is no data
             if snapshot is None or image_rgb is None:
@@ -178,20 +189,30 @@ class SimEnv(object):
                 counter += 1
                 self.global_t += 1
 
-                #TODO cambiare la gestione delle azioni
+                # TODO cambiare la gestione delle azioni
                 action = model.select_action(state, eval=eval)
-                steer = action
+                steer, brake, throttle = action  # Ottieni le azioni per sterzata, frenata e accelerazione
+                # Applica il mapping agli indici delle azioni se action_map non è None
                 if action_map is not None:
-                    steer = action_map[action]
+                    steer = action_map[steer]
+                    brake = action_map[brake]
+                    throttle = action_map[throttle]
 
-                control = self.speed_controller.run_step(self.target_speed)
+                # Controllo della velocità della macchina
+                # Bilancia throttle e brake
+                throttle, brake = balance_throttle_brake(throttle, brake)
+                # Applica le azioni alla macchina
+                control = self.vehicle.get_control()
+                control.throttle = throttle
+                control.brake = brake
                 control.steer = steer
                 self.vehicle.apply_control(control)
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
                 # TODO pensare a come usare in maniera intelligente i sensori
-                snapshot, image_rgb, image_rgb_vis, camera_depth,lidar, lane_invasion, collision = sync_mode.tick(timeout=1.0)
+                snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+                    timeout=1.0)
 
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
                 reward = reward_value(cos_yaw_diff, dist, collision)
@@ -208,7 +229,8 @@ class SimEnv(object):
 
                 next_state = image
 
-                replay_buffer.add(state, action, next_state, reward, done)
+                # Aggiungi le azioni al replay buffer
+                replay_buffer.add(state, steer, brake, throttle, next_state, reward, done)
 
                 if not eval:
                     if ep > self.start_train and (self.global_t % self.train_freq) == 0:

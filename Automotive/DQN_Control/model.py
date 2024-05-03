@@ -5,9 +5,10 @@ import torch.nn as nn  # Importa il modulo nn di PyTorch per definire reti neura
 import torch.nn.functional as F  # Importa funzioni di attivazione e altre funzioni utili da nn.functional
 
 
+# TODO: computer vision only non devono arrivare altri dati
 # Definizione della rete neurale convoluzionale (CNN)
 class ConvNet(nn.Module):
-    def __init__(self, dim, in_channels, num_actions) -> None:
+    def __init__(self, dim, in_channels, num_actions_steer, num_actions_brake, num_actions_throttle) -> None:
         super(ConvNet, self).__init__()
         # Definizione dei layer convoluzionali
         self.conv1 = nn.Conv2d(in_channels, 32, 8, 4)
@@ -22,29 +23,35 @@ class ConvNet(nn.Module):
         self.fc1_bn = nn.BatchNorm1d(256)  # Batch normalization per il primo layer fully connected
         self.fc2 = nn.Linear(256, 32)
         self.fc2_bn = nn.BatchNorm1d(32)  # Batch normalization per il secondo layer fully connected
-        self.fc3 = nn.Linear(32, num_actions)  # Output layer per i valori di azione
+
+        # Output layer per i valori di azione
+        self.fc3_steer = nn.Linear(32, num_actions_steer)  # Output layer per gli angoli di sterzata
+        self.fc3_brake = nn.Linear(32, num_actions_brake)  # Output layer per i valori di frenata
+        self.fc3_throttle = nn.Linear(32, num_actions_throttle)  # Output layer per i valori di accelerazione
 
     def forward(self, x):
-        # Passaggio in avanti attraverso la rete neurale
-        x = F.relu(self.conv1_bn(
-            self.conv1(x)))  # Primo layer convoluzionale seguito da batch normalization e attivazione ReLU
-        x = F.relu(self.conv2_bn(
-            self.conv2(x)))  # Secondo layer convoluzionale seguito da batch normalization e attivazione ReLU
-        x = F.relu(self.conv3_bn(
-            self.conv3(x)))  # Terzo layer convoluzionale seguito da batch normalization e attivazione ReLU
-        x = F.relu(self.fc1_bn(self.fc1(x.reshape(-1,
-                                                  64 * 8 * 8))))  # Primo layer fully connected seguito da batch normalization e attivazione ReLU
-        x = F.relu(
-            self.fc2_bn(self.fc2(x)))  # Secondo layer fully connected seguito da batch normalization e attivazione ReLU
-        x = self.fc3(x)  # Output layer per i valori di azione
-        return x
+        x = F.relu(self.conv1_bn(self.conv1(x)))
+        x = F.relu(self.conv2_bn(self.conv2(x)))
+        x = F.relu(self.conv3_bn(self.conv3(x)))
+        x = x.view(-1, 64 * 8 * 8)  # flatten
+        x = F.relu(self.fc1_bn(self.fc1(x)))
+        x = F.relu(self.fc2_bn(self.fc2(x)))
+
+        # Output per tutte e tre le azioni
+        steer_output = self.fc3_steer(x)
+        brake_output = self.fc3_brake(x)
+        throttle_output = self.fc3_throttle(x)
+
+        return steer_output, brake_output, throttle_output
 
 
 # Definizione dell'algoritmo Deep Q-Network (DQN)
 class DQN(object):
     def __init__(
             self,
-            num_actions,
+            num_actions_steer,
+            num_action_brake,
+            num_action_throttle,
             state_dim,
             in_channels,
             device,
@@ -61,7 +68,8 @@ class DQN(object):
         self.device = device  # Dispositivo su cui lavorare (CPU o GPU)
 
         # Rete neurale Q per approssimare la funzione Q
-        self.Q = ConvNet(state_dim, in_channels, num_actions).to(self.device)
+        self.Q = ConvNet(state_dim, in_channels, num_actions_steer, num_action_brake, num_action_throttle).to(
+            self.device)
         # Rete neurale Q target (inizialmente uguale a Q)
         self.Q_target = copy.deepcopy(self.Q)  # Copia profonda della rete Q per inizializzare la rete target
         # Ottimizzatore per la rete Q
@@ -78,7 +86,9 @@ class DQN(object):
 
         self.state_shape = (-1,) + state_dim  # Forma dello stato
         self.eval_eps = eval_eps  # Epsilon per valutazioni
-        self.num_actions = num_actions  # Numero di azioni disponibili
+        self.num_actions_steer = num_actions_steer  # Numero di azioni disponibili
+        self.num_actions_brake = num_action_brake  # Numero di azioni disponibili
+        self.num_actions_throttle= num_action_throttle  # Numero di azioni disponibili
 
         self.iterations = 0  # Contatore delle iterazioni
 
@@ -88,15 +98,24 @@ class DQN(object):
             else max(self.slope * self.iterations + self.initial_eps, self.end_eps)
         self.current_eps = eps
 
-        # Selezione dell'azione secondo la politica epsilon-greedy
+        # Selezione delle azioni per ciascuna delle azioni disponibili
         if np.random.uniform(0, 1) > eps:
             self.Q.eval()  # Imposta la rete Q in modalità di valutazione
             with torch.no_grad():
                 # senza batch norm, rimuovere il unsqueeze
                 state = torch.FloatTensor(state).reshape(self.state_shape).unsqueeze(0).to(self.device)
-                return int(self.Q(state).argmax(1))  # Seleziona l'azione con il valore Q massimo
+                steer, brake, throttle = self.Q(state)
+                # Seleziona l'azione con il valore Q massimo per ciascuna azione
+                steer_action = int(steer.argmax(1))
+                brake_action = int(brake.argmax(1))
+                throttle_action = int(throttle.argmax(1))
+                return steer_action, brake_action, throttle_action
         else:
-            return np.random.randint(self.num_actions)  # Seleziona un'azione casuale
+            # Seleziona azioni casuali per ciascuna delle azioni disponibili
+            steer_action = np.random.randint(self.num_actions_steer)
+            brake_action = np.random.randint(self.num_actions_brake)
+            throttle_action = np.random.randint(self.num_actions_throttle)
+            return steer_action, brake_action, throttle_action
 
     # Metodo per addestrare la rete Q utilizzando il replay buffer
     def train(self, replay_buffer):

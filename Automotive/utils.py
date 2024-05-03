@@ -81,3 +81,12 @@ def create_folders(folder_names):
         if not os.path.exists(directory):
             # Se non esiste, crea la cartella
             os.makedirs(directory)
+
+
+# Aggiungi una logica per bilanciare le azioni di throttle e brake
+def balance_throttle_brake(throttle, brake):
+    if throttle > 0 and brake > 0:
+        # Se entrambi throttle e brake sono attivi, riduci uno dei due per bilanciare
+        throttle = min(throttle, brake)
+        brake = min(throttle, brake)
+    return throttle, brake
