@@ -9,9 +9,9 @@ def run():
     try:
         # Definizione dei parametri
         buffer_size = 1e4  # Dimensione del replay buffer
-        batch_size = 32  # Dimensione del batch per il test
+        batch_size = 128  # Dimensione del batch per il test
         state_dim = (128, 128)  # Dimensione dello stato (immagine 128x128)
-        device = "cuda"  # Dispositivo su cui eseguire il modello (CPU)
+        device = "cuda"  # Dispositivo su cui eseguire il modello ()
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili

@@ -10,8 +10,8 @@ from environment import SimEnv
 def run():
     try:
         # Definizione dei parametri
-        buffer_size = 1e4  # Dimensione del replay buffer+
-        batch_size = 64  # Dimensione del batch per l'addestramento (quante azioni fa contemporaneamente)
+        buffer_size = 1e4  # Dimensione del replay buffer
+        batch_size = 128  # Dimensione del batch per l'addestramento (quante azioni fa contemporaneamente)
         state_dim = (128, 128)  # Dimensione dello stato (immagine 128x128)
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se
@@ -29,7 +29,7 @@ def run():
         model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device)
 
         # Creazione dell'ambiente di simulazione
-        env = SimEnv(visuals=False, **env_params)
+        env = SimEnv(visuals=True, **env_params)
 
         # Ciclo di addestramento per un numero di episodi definito
         episodes = 1500

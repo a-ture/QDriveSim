@@ -7,13 +7,13 @@ action_values_steer = [-0.75, -0.5, -0.25, -0.15, -0.1, -0.05, 0,
 action_map_steer = {i: x for i, x in enumerate(action_values_steer)}
 
 # Definizione dei valori di azione del freno
-num_brake_levels = 5
+num_brake_levels = 15
 max_brake = 1
 action_values_brake = np.linspace(0, max_brake, num_brake_levels + 1)[1:]  # Crea intervalli regolari escludendo lo 0
 action_map_brake = {i: x for i, x in enumerate(action_values_brake)}
 
 # Definizione dei valori di azione dell'acceleratore
-num_throttle_levels = 5
+num_throttle_levels = 15
 max_throttle = 1
 action_values_throttle = np.linspace(0, max_throttle, num_throttle_levels + 1)[1:]  # Crea intervalli regolari
 # escludendo lo 0

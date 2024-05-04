@@ -2,6 +2,8 @@ import glob
 import os
 import sys
 
+from config import action_map_steer, action_map_brake, action_map_throttle
+
 # Aggiungi il percorso per importare i moduli di Carla
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -193,10 +195,10 @@ class SimEnv(object):
                 action = model.select_action(state, eval=eval)
                 steer, brake, throttle = action  # Ottieni le azioni per sterzata, frenata e accelerazione
                 # Applica il mapping agli indici delle azioni se action_map non è None
-                if action_map is not None:
-                    steer = action_map[steer]
-                    brake = action_map[brake]
-                    throttle = action_map[throttle]
+                if action is not None:
+                    steer = action_map_steer[steer]
+                    brake = action_map_brake[brake]
+                    throttle = action_map_throttle[throttle]
 
                 # Controllo della velocità della macchina
                 # Bilancia throttle e brake

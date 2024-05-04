@@ -88,7 +88,7 @@ class DQN(object):
         self.eval_eps = eval_eps  # Epsilon per valutazioni
         self.num_actions_steer = num_actions_steer  # Numero di azioni disponibili
         self.num_actions_brake = num_action_brake  # Numero di azioni disponibili
-        self.num_actions_throttle= num_action_throttle  # Numero di azioni disponibili
+        self.num_actions_throttle = num_action_throttle  # Numero di azioni disponibili
 
         self.iterations = 0  # Contatore delle iterazioni
 
@@ -107,7 +107,7 @@ class DQN(object):
                 steer, brake, throttle = self.Q(state)
                 # Seleziona l'azione con il valore Q massimo per ciascuna azione
                 steer_action = int(steer.argmax(1))
-                brake_action = int(brake.argmax(1))
+                brake_action = int(brake.argmin(1))
                 throttle_action = int(throttle.argmax(1))
                 return steer_action, brake_action, throttle_action
         else:
