@@ -11,8 +11,8 @@ def run():
     try:
         # Definizione dei parametri
         buffer_size = 1e4  # Dimensione del replay buffer
-        batch_size = 128  # Dimensione del batch per l'addestramento (quante azioni fa contemporaneamente)
-        state_dim = (128, 128)  # Dimensione dello stato (immagine 128x128)
+        batch_size = 1024  # Dimensione del batch per l'addestramento (quante azioni fa contemporaneamente)
+        state_dim = (4,128, 128)  # Dimensione dello stato (immagine 128x128)
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se
         # disponibile, altrimenti CPU)

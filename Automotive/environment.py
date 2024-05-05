@@ -32,7 +32,7 @@ class SimEnv(object):
                  start_buffer=10,
                  train_freq=1,
                  save_freq=50,
-                 start_ep=401,
+                 start_ep=0,
                  max_dist_from_waypoint=20
                  ) -> None:
         # Inizializzazione degli attributi
@@ -169,8 +169,13 @@ class SimEnv(object):
                 self.reset()
                 return None
 
-            image = process_img(image_rgb)
-            next_state = image
+            image_rgb = process_img(image_rgb)
+            image_rgb_vis = process_img(image_rgb_vis)
+            image_depth = process_img(camera_depth)
+            # image_lidar = process_img(lidar)
+            image_segmentation = process_img(segmentation_sensor)
+
+            next_state = [image_rgb, image_depth, image_segmentation, image_rgb_vis]
 
             while True:
                 if self.visuals:
@@ -247,10 +252,14 @@ class SimEnv(object):
                     self.display.blit(
                         self.font.render('% 5d FPS (simulated)' % fps, True, (255, 255, 255)),
                         (8, 28))
+                    # Aggiungi la velocità attuale della macchina
+                    self.display.blit(
+                        self.font.render('Speed: %.2f m/s' % speed, True, (255, 255, 255)),
+                        (8, 46))
                     pygame.display.flip()
 
                 if collision == 1 or counter >= self.max_iter or dist > self.max_dist_from_waypoint:
-                    print("Episode {} processed".format(ep), counter)
+                    print("Episode {} processed".format(ep), counter, "total reward: ", reward)
                     break
 
             if ep % self.save_freq == 0 and ep > 0:

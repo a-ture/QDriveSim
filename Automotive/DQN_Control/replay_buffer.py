@@ -1,7 +1,6 @@
 import cv2  # Importa il modulo OpenCV per il lavoro con immagini
 import torch  # Importa PyTorch, una libreria per il machine learning
 import numpy as np  # Importa NumPy, una libreria per il calcolo numerico
-from torchvision import transforms  # Importa il modulo torchvision per trasformazioni delle immagini
 
 
 class ReplayBuffer(object):
