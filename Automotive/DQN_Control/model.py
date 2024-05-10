@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class ConvNet(nn.Module):
     def __init__(self, dim, in_channels, num_actions_steer, num_actions_brake, num_actions_throttle) -> None:
         super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels * 4, 32, 8, 4)
+        self.conv1 = nn.Conv2d(in_channels, 32, 8, 4)
         self.conv1_bn = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, 4, 3)
         self.conv2_bn = nn.BatchNorm2d(64)

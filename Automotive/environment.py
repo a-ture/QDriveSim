@@ -154,7 +154,7 @@ class SimEnv(object):
             actor.destroy()
 
     # Genera un episodio nell'ambiente
-    def generate_episode(self, model, replay_buffer, ep, action_map=None, eval=True):
+    def generate_episode(self, model, replay_buffer, ep,eval=True):
         with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.camera_depth, self.lidar_sensor,
                            self.segmentation_sensor, self.lane_invasion_sensor, self.collision_sensor,
                            fps=30) as sync_mode:
@@ -175,7 +175,7 @@ class SimEnv(object):
             # image_lidar = process_img(lidar)
             image_segmentation = process_img(segmentation_sensor)
 
-            next_state = [image_rgb, image_depth, image_segmentation, image_rgb_vis]
+            next_state = [image_rgb, image_depth, image_segmentation]
 
             while True:
                 if self.visuals:
@@ -229,12 +229,14 @@ class SimEnv(object):
                     break
 
                 image = process_img(image_rgb)
+                image_depth = process_img(camera_depth)
+                image_segmentation = process_img(segmentation_sensor)
 
                 done = 1 if collision else 0
 
                 self.total_rewards += reward
 
-                next_state = image
+                next_state = [image, image_depth, image_segmentation]
 
                 # Aggiungi le azioni al replay buffer
                 replay_buffer.add(state, steer, brake, throttle, next_state, reward, done)
