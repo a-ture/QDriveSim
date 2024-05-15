@@ -151,10 +151,16 @@ class SimEnv(object):
     # Reimposta lo stato dell'ambiente
     def reset(self):
         for actor in self.actor_list:
-            actor.destroy()
+            if actor.is_alive:
+                actor.destroy()
+
+    def calculate_metrics(self):
+        # velocità, total, reward, waypoint distance, timesteps, numersteps. durata dell episosio
+        # possiamo plottare le learning curve
+        pass
 
     # Genera un episodio nell'ambiente
-    def generate_episode(self, model, replay_buffer, ep,eval=True):
+    def generate_episode(self, model, replay_buffer, ep, eval=True):
         with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.camera_depth, self.lidar_sensor,
                            self.segmentation_sensor, self.lane_invasion_sensor, self.collision_sensor,
                            fps=30) as sync_mode:
@@ -217,14 +223,13 @@ class SimEnv(object):
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
-                # TODO pensare a come usare in maniera intelligente i sensori
                 snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                     timeout=1.0)
 
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
                 reward = reward_value(cos_yaw_diff, dist, collision)
 
-                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None:
+                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None or lidar is None or segmentation_sensor is None or camera_depth is None:
                     print("Process ended here")
                     break
 

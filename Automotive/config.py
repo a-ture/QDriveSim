@@ -24,6 +24,6 @@ env_params = {
     'start_buffer': 10,  # Numero di iterazioni iniziali senza addestramento
     'train_freq': 1,  # Frequenza di aggiornamento della rete neurale (addestramento)
     'save_freq': 50,  # Frequenza di salvataggio dei pesi del modello
-    'start_ep': 401,  # Numero di episodi iniziali già eseguiti
+    'start_ep': 1,  # Numero di episodi iniziali già eseguiti
     'max_dist_from_waypoint': 20  # Distanza massima dal percorso consentita
 }

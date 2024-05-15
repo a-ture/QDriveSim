@@ -4,6 +4,7 @@ from DQN_Control.replay_buffer import ReplayBuffer
 from DQN_Control.model import DQN
 from config import action_map_steer, env_params, action_map_throttle, action_map_brake
 from environment import SimEnv
+from codecarbon import EmissionsTracker
 
 
 # Funzione principale per eseguire l'addestramento del modello
@@ -11,8 +12,8 @@ def run():
     try:
         # Definizione dei parametri
         buffer_size = 1e4  # Dimensione del replay buffer
-        batch_size = 1024  # Dimensione del batch per l'addestramento
-        state_dim = (3,128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
+        batch_size = 32  # Dimensione del batch per l'addestramento
+        state_dim = (3, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se
         # disponibile, altrimenti CPU)
@@ -20,7 +21,7 @@ def run():
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
 
-        in_channels = 3 # da cambiare in base al numero di sensori e al colore delle img
+        in_channels = 3  # da cambiare in base al numero di sensori e al colore delle img
 
         # Creazione del replay buffer
         replay_buffer = ReplayBuffer(state_dim, batch_size, buffer_size, device)
@@ -47,4 +48,14 @@ def run():
 
 # Esecuzione della funzione run() se questo modulo è eseguito come script principale
 if __name__ == "__main__":
+    tracker = EmissionsTracker()
+    # Avvia il monitoraggio delle emissioni
+    tracker.start()
     run()
+    # Ferma il monitoraggio delle emissioni
+    tracker.stop()
+
+    # Ottieni i dati sul consumo
+    # Ottieni il riepilogo delle emissioni
+    summary = tracker.final_emissions_data
+    print(summary)
