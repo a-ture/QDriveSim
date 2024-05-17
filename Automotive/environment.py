@@ -1,8 +1,11 @@
 import glob
 import os
 import sys
+import time
 
+import pandas as pd
 from config import action_map_steer, action_map_brake, action_map_throttle
+from logger import setup_logger, close_loggers
 
 # Aggiungi il percorso per importare i moduli di Carla
 try:
@@ -154,17 +157,38 @@ class SimEnv(object):
             if actor.is_alive:
                 actor.destroy()
 
-    def calculate_metrics(self):
-        # velocità, total, reward, waypoint distance, timesteps, numersteps. durata dell episosio
-        # possiamo plottare le learning curve
-        pass
+    def calculate_metrics(self, episode, speed, total_reward, vehicle_location, waypoint, duration, timesteps,
+                          collisions, lane_invasions, avg_speed):
+        metrics_data = {
+            'episode': [episode],
+            'speed': [speed],
+            'total_reward': [total_reward],
+            'vehicle_location': [str(vehicle_location)],  # Convert to string to save in CSV
+            'waypoint': [str(waypoint.transform.location)],  # Convert to string to save in CSV
+            'duration': [duration],
+            'timesteps': [timesteps],
+            'collisions': [collisions],
+            'lane_invasions': [lane_invasions],
+            'avg_speed': [avg_speed],
+        }
 
-    # Genera un episodio nell'ambiente
+        metrics_df = pd.DataFrame(metrics_data)
+        metrics_file = 'episode_metrics.csv'
+
+        if not os.path.isfile(metrics_file):
+            metrics_df.to_csv(metrics_file, index=False)
+        else:
+            metrics_df.to_csv(metrics_file, mode='a', header=False, index=False)
+
     def generate_episode(self, model, replay_buffer, ep, eval=True):
+        start_time = time.time()
         with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.camera_depth, self.lidar_sensor,
                            self.segmentation_sensor, self.lane_invasion_sensor, self.collision_sensor,
                            fps=30) as sync_mode:
             counter = 0
+            total_collisions = 0
+            total_lane_invasions = 0
+            speed_sum = 0
 
             snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                 timeout=1.0)
@@ -178,7 +202,6 @@ class SimEnv(object):
             image_rgb = process_img(image_rgb)
             image_rgb_vis = process_img(image_rgb_vis)
             image_depth = process_img(camera_depth)
-            # image_lidar = process_img(lidar)
             image_segmentation = process_img(segmentation_sensor)
 
             next_state = [image_rgb, image_depth, image_segmentation]
@@ -195,6 +218,7 @@ class SimEnv(object):
                                                              lane_type=carla.LaneType.Driving)
 
                 speed = get_speed(self.vehicle)
+                speed_sum += speed
 
                 # Advance the simulation and wait for the data.
                 state = next_state
@@ -228,6 +252,12 @@ class SimEnv(object):
 
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
                 reward = reward_value(cos_yaw_diff, dist, collision)
+
+                if collision:
+                    total_collisions += 1
+
+                if lane_invasion:
+                    total_lane_invasions += 1
 
                 if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None or lidar is None or segmentation_sensor is None or camera_depth is None:
                     print("Process ended here")
@@ -267,6 +297,11 @@ class SimEnv(object):
 
                 if collision == 1 or counter >= self.max_iter or dist > self.max_dist_from_waypoint:
                     print("Episode {} processed".format(ep), counter, "total reward: ", reward)
+                    duration = time.time() - start_time
+                    avg_speed = speed_sum / counter if counter > 0 else 0
+
+                    self.calculate_metrics(ep, speed, self.total_rewards, vehicle_location, waypoint, duration, counter,
+                                           total_collisions, total_lane_invasions, avg_speed)
                     break
 
             if ep % self.save_freq == 0 and ep > 0:
