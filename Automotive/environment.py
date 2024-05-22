@@ -5,7 +5,6 @@ import time
 
 import pandas as pd
 from config import action_map_steer, action_map_brake, action_map_throttle
-from logger import setup_logger, close_loggers
 
 # Aggiungi il percorso per importare i moduli di Carla
 try:
@@ -204,6 +203,7 @@ class SimEnv(object):
             image_depth = process_img(camera_depth)
             image_segmentation = process_img(segmentation_sensor)
 
+
             next_state = [image_rgb, image_depth, image_segmentation]
 
             while True:
@@ -250,8 +250,10 @@ class SimEnv(object):
                 snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                     timeout=1.0)
 
+                avg_speed = speed_sum / counter if counter > 0 else 0
+
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
-                reward = reward_value(cos_yaw_diff, dist, collision)
+                reward = reward_value(cos_yaw_diff, dist, collision, avg_speed)
 
                 if collision:
                     total_collisions += 1
@@ -298,7 +300,6 @@ class SimEnv(object):
                 if collision == 1 or counter >= self.max_iter or dist > self.max_dist_from_waypoint:
                     print("Episode {} processed".format(ep), counter, "total reward: ", reward)
                     duration = time.time() - start_time
-                    avg_speed = speed_sum / counter if counter > 0 else 0
 
                     self.calculate_metrics(ep, speed, self.total_rewards, vehicle_location, waypoint, duration, counter,
                                            total_collisions, total_lane_invasions, avg_speed)
@@ -347,6 +348,20 @@ def get_reward_comp(vehicle, waypoint, collision):
 
 
 # Calcola il valore della ricompensa
-def reward_value(cos_yaw_diff, dist, collision, lambda_1=1, lambda_2=1, lambda_3=5):
-    reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision)
+def reward_value(cos_yaw_diff, dist, collision, speed, target_speed=15, lambda_1=1, lambda_2=1, lambda_3=5, lambda_4=2):
+    """
+    Calcola il valore della ricompensa.
+    :param cos_yaw_diff: Differenza di orientamento tra il veicolo e il waypoint.
+    :param dist: Distanza tra il veicolo e il waypoint.
+    :param collision: Indicatore di collisione (1 se c'è stata una collisione, 0 altrimenti).
+    :param speed: Velocità attuale del veicolo.
+    :param target_speed: Velocità target che il veicolo dovrebbe mantenere.
+    :param lambda_1: Peso del termine cos_yaw_diff.
+    :param lambda_2: Peso del termine dist.
+    :param lambda_3: Peso del termine collision.
+    :param lambda_4: Peso del termine per la velocità.
+    :return: Ricompensa calcolata.
+    """
+    speed_diff = abs(speed - target_speed)
+    reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision) - (lambda_4 * speed_diff)
     return reward

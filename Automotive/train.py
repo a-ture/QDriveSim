@@ -1,13 +1,11 @@
-import logging
 import os
-import pandas as pd
 import torch
 
 from DQN_Control.replay_buffer import ReplayBuffer
 from DQN_Control.model import DQN
 from config import action_map_steer, env_params, action_map_throttle, action_map_brake
 from environment import SimEnv
-from codecarbon import EmissionsTracker, OfflineEmissionsTracker
+from codecarbon import OfflineEmissionsTracker
 
 from logger import setup_logger, close_loggers
 from utils import create_folders
@@ -38,7 +36,7 @@ def run():
         env = SimEnv(visuals=True, **env_params)
 
         # Ciclo di addestramento per un numero di episodi definito
-        episodes = 500
+        episodes = 300
         for ep in range(episodes):
             # Creazione degli attori nell'ambiente
             env.create_actors()
