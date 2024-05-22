@@ -203,7 +203,6 @@ class SimEnv(object):
             image_depth = process_img(camera_depth)
             image_segmentation = process_img(segmentation_sensor)
 
-
             next_state = [image_rgb, image_depth, image_segmentation]
 
             while True:

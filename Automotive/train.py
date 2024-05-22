@@ -41,7 +41,7 @@ def run():
             # Creazione degli attori nell'ambiente
             env.create_actors()
             # Generazione dell'episodio e addestramento del modello
-            # TODO qui facciamo restituire cosa le cose da salvare nel log per ogni eps
+
             env.generate_episode(model, replay_buffer, ep, eval=False)
             # Reimpostazione dell'ambiente per il prossimo episodio
             env.reset()

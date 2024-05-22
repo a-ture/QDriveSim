@@ -9,13 +9,13 @@ def run():
     try:
         # Definizione dei parametri
         buffer_size = 1e4  # Dimensione del replay buffer
-        batch_size = 128  # Dimensione del batch per il test
-        state_dim = (128, 128)  # Dimensione dello stato (immagine 128x128)
+        batch_size = 32  # Dimensione del batch per il test
+        state_dim = (3,128, 128)  # Dimensione dello stato (immagine 128x128)
         device = "cuda"  # Dispositivo su cui eseguire il modello ()
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili
-        in_channels = 1  # Numero di canali dell'immagine (scala di grigi)
+        in_channels = 3  # Numero di canali dell'immagine (scala di grigi)
         episodes = 100  # Numero di episodi da eseguire per il test
 
         # Creazione del replay buffer
@@ -25,7 +25,7 @@ def run():
         model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device)
 
         # Caricamento dei pesi del modello addestrato
-        model.load('weights/model_ep_1500')
+        model.load('weights/model_ep_50')
 
         # Impostazione dell'ambiente di simulazione
         env = SimEnv(visuals=True, **env_params)
@@ -33,8 +33,7 @@ def run():
         # Ciclo per eseguire i test su più episodi
         for ep in range(episodes):
             env.create_actors()  # Creazione degli attori nell'ambiente
-            env.generate_episode(model, replay_buffer, ep, action_map_steer,
-                                 eval=True)  # Esecuzione dell'episodio in modalità di valutazione
+            env.generate_episode(model, replay_buffer, ep, eval=True)  # Esecuzione dell'episodio in modalità di valutazione
             env.reset()  # Reimpostazione dell'ambiente per il prossimo episodio
     finally:
         env.reset()  # Reimpostazione dell'ambiente alla fine del test
