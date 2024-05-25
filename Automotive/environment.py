@@ -189,7 +189,7 @@ class SimEnv(object):
             total_lane_invasions = 0
             speed_sum = 0
 
-            snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+            snapshot, image_rgb, image_rgb_vis, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                 timeout=1.0)
 
             # destroy if there is no data
@@ -202,8 +202,9 @@ class SimEnv(object):
             image_rgb_vis = process_img(image_rgb_vis)
             image_depth = process_img(camera_depth)
             image_segmentation = process_img(segmentation_sensor)
+            lidar_points = process_lidar(lidar_data)
 
-            next_state = [image_rgb, image_depth, image_segmentation]
+            next_state = [image_rgb, image_depth, image_segmentation, lidar_points]
 
             while True:
                 if self.visuals:
@@ -225,7 +226,6 @@ class SimEnv(object):
                 counter += 1
                 self.global_t += 1
 
-                # TODO cambiare la gestione delle azioni
                 action = model.select_action(state, eval=eval)
                 steer, brake, throttle = action  # Ottieni le azioni per sterzata, frenata e accelerazione
                 # Applica il mapping agli indici delle azioni se action_map non è None
@@ -246,13 +246,13 @@ class SimEnv(object):
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
-                snapshot, image_rgb, image_rgb_vis, camera_depth, lidar, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+                snapshot, image_rgb, image_rgb_vis, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                     timeout=1.0)
 
                 avg_speed = speed_sum / counter if counter > 0 else 0
 
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
-                reward = reward_value(cos_yaw_diff, dist, collision, avg_speed)
+                reward = reward_value(cos_yaw_diff, dist, collision, total_lane_invasions,avg_speed)
 
                 if collision:
                     total_collisions += 1
@@ -260,19 +260,20 @@ class SimEnv(object):
                 if lane_invasion:
                     total_lane_invasions += 1
 
-                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None or lidar is None or segmentation_sensor is None or camera_depth is None:
+                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None or lidar_data is None or segmentation_sensor is None or camera_depth is None:
                     print("Process ended here")
                     break
 
                 image = process_img(image_rgb)
                 image_depth = process_img(camera_depth)
                 image_segmentation = process_img(segmentation_sensor)
+                lidar_points = process_lidar(lidar_data)
 
                 done = 1 if collision else 0
 
                 self.total_rewards += reward
 
-                next_state = [image, image_depth, image_segmentation]
+                next_state = [image, image_depth, image_segmentation, lidar_points]
 
                 # Aggiungi le azioni al replay buffer
                 replay_buffer.add(state, steer, brake, throttle, next_state, reward, done)
@@ -294,6 +295,13 @@ class SimEnv(object):
                     self.display.blit(
                         self.font.render('Speed: %.2f m/s' % speed, True, (255, 255, 255)),
                         (8, 46))
+
+                    # Draw sensor data
+                    draw_image(self.display, image_rgb)
+                    draw_depth_image(self.display, image_depth)
+                    draw_segmentation_image(self.display, image_segmentation)
+                    draw_lidar_image(self.display, lidar_points)
+
                     pygame.display.flip()
 
                 if collision == 1 or counter >= self.max_iter or dist > self.max_dist_from_waypoint:
@@ -347,20 +355,24 @@ def get_reward_comp(vehicle, waypoint, collision):
 
 
 # Calcola il valore della ricompensa
-def reward_value(cos_yaw_diff, dist, collision, speed, target_speed=15, lambda_1=1, lambda_2=1, lambda_3=5, lambda_4=2):
+def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, target_speed=15, lambda_1=1, lambda_2=1,
+                 lambda_3=5, lambda_4=2, lambda_5=0.5):
     """
     Calcola il valore della ricompensa.
     :param cos_yaw_diff: Differenza di orientamento tra il veicolo e il waypoint.
     :param dist: Distanza tra il veicolo e il waypoint.
     :param collision: Indicatore di collisione (1 se c'è stata una collisione, 0 altrimenti).
+    :param lane_invasion: Indicatore di invasione di corsia (1 se c'è stata un'invasione di corsia, 0 altrimenti).
     :param speed: Velocità attuale del veicolo.
     :param target_speed: Velocità target che il veicolo dovrebbe mantenere.
     :param lambda_1: Peso del termine cos_yaw_diff.
     :param lambda_2: Peso del termine dist.
     :param lambda_3: Peso del termine collision.
     :param lambda_4: Peso del termine per la velocità.
+    :param lambda_5: Peso del termine per l'invasione di corsia.
     :return: Ricompensa calcolata.
     """
     speed_diff = abs(speed - target_speed)
-    reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision) - (lambda_4 * speed_diff)
+    reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision) - (lambda_4 * speed_diff) - (
+            lambda_5 * lane_invasion)
     return reward

@@ -25,6 +25,29 @@ def process_img(image, dim_x=128, dim_y=128):
     return normalized_img
 
 
+def process_lidar(lidar_data, dim_x=128, dim_y=128):
+    # Esempio di elaborazione dei dati Lidar per generare una rappresentazione utilizzabile
+    points = np.frombuffer(lidar_data.raw_data, dtype=np.dtype('f4'))
+    points = np.reshape(points, (int(points.shape[0] / 4), 4))
+
+    # Creare un'immagine vuota
+    lidar_image = np.zeros((dim_x, dim_y), dtype=np.float32)
+
+    # Popolare l'immagine con i punti del Lidar
+    for point in points:
+        x, y, z, _ = point
+        if -10 < x < 10 and -10 < y < 10:  # Filtro per limitare i punti entro un range
+            i = int((x + 10) / 20 * dim_x)
+            j = int((y + 10) / 20 * dim_y)
+            lidar_image[i, j] = min(z, 1)  # Popolare l'immagine con il valore di altezza
+
+    # Normalizza l'immagine
+    lidar_image = cv2.normalize(lidar_image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+    lidar_image = np.uint8(lidar_image)  # Convertire a uint8
+
+    return lidar_image
+
+
 def draw_image(surface, image, blend=False):
     # Disegna un'immagine su una superficie di Pygame
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))  # Converte i dati dell'immagine in un array numpy
@@ -36,6 +59,24 @@ def draw_image(surface, image, blend=False):
     if blend:
         image_surface.set_alpha(100)  # Imposta la trasparenza dell'immagine se richiesto
     surface.blit(image_surface, (0, 0))  # Disegna l'immagine sulla superficie di Pygame
+
+
+def draw_depth_image(display, image):
+    array = np.array(image * 255, dtype=np.uint8)
+    surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+    display.blit(surface, (0, 128))
+
+
+def draw_segmentation_image(display, image):
+    array = np.array(image * 255, dtype=np.uint8)
+    surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+    display.blit(surface, (0, 256))
+
+
+def draw_lidar_image(display, image):
+    array = np.array(image * 255, dtype=np.uint8)
+    surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+    display.blit(surface, (0, 384))
 
 
 def get_font():

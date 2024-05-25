@@ -86,10 +86,6 @@ class DQN(object):
         if np.random.uniform(0, 1) > eps:
             self.Q.eval()
             with torch.no_grad():
-                # TODO UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please
-                #  consider converting the list to a single numpy.ndarray with numpy.array() before converting to a
-                #  tensor.  state_tensor =
-                #  torch.FloatTensor(state).unsqueeze(0).to(self.device)
                 state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
                 steer, brake, throttle = self.Q(state_tensor)
                 steer_action = int(steer.argmax(1))

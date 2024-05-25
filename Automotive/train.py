@@ -17,14 +17,15 @@ def run():
         # Definizione dei parametri
         buffer_size = 1e4  # Dimensione del replay buffer
         batch_size = 32  # Dimensione del batch per l'addestramento
-        state_dim = (3, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
+        state_dim = (4, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
         device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se disponibile, altrimenti CPU)
+            "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se
+        # disponibile, altrimenti CPU)
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
 
-        in_channels = 3  # da cambiare in base al numero di sensori e al colore delle img
+        in_channels = 4 # da cambiare in base al numero di sensori e al colore delle img
 
         # Creazione del replay buffer
         replay_buffer = ReplayBuffer(state_dim, batch_size, buffer_size, device)
