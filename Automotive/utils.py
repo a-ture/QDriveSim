@@ -52,10 +52,11 @@ def draw_image(surface, image, blend=False):
     # Disegna un'immagine su una superficie di Pygame
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))  # Converte i dati dell'immagine in un array numpy
     array = np.reshape(array,
-                       (image.height, image.width, 4))  # Ridimensiona l'array secondo le dimensioni dell'immagine
-    array = array[:, :, :3]  # Seleziona solo i canali RGB, scartando l'alpha
+                       (image.height, image.width, 4))  # Ridimensiona array secondo le dimensioni dell'immagine
+    array = array[:, :, :3]  # Seleziona solo i canali RGB, scartando alpha
     array = array[:, :, ::-1]  # Inverte l'ordine dei canali per adattarsi alla convenzione BGR di Pygame
-    image_surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))  # Crea una superficie di Pygame dall'array
+    image_surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))  # Crea una superficie di Pygame
+
     if blend:
         image_surface.set_alpha(100)  # Imposta la trasparenza dell'immagine se richiesto
     surface.blit(image_surface, (0, 0))  # Disegna l'immagine sulla superficie di Pygame
@@ -68,8 +69,21 @@ def draw_depth_image(display, image):
 
 
 def draw_segmentation_image(display, image):
-    array = np.array(image * 255, dtype=np.uint8)
+    # Normalizza l'immagine di segmentazione nell'intervallo [0, 255] e la converte in tipo CV_8U
+    normalized_image = cv2.normalize(image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+    normalized_image = np.uint8(normalized_image)
+
+    # Converte l'immagine di segmentazione in un'immagine a tre canali
+    colored_segmentation = cv2.cvtColor(normalized_image, cv2.COLOR_GRAY2BGR)
+
+    # Applica una mappa dei colori alla segmentazione
+    colored_segmentation = cv2.applyColorMap(colored_segmentation, cv2.COLORMAP_JET)
+
+    # Converte l'immagine nel formato corretto per Pygame
+    array = np.array(colored_segmentation, dtype=np.uint8)
     surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+
+    # Disegna l'immagine sulla superficie di Pygame
     display.blit(surface, (0, 256))
 
 
@@ -77,6 +91,12 @@ def draw_lidar_image(display, image):
     array = np.array(image * 255, dtype=np.uint8)
     surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
     display.blit(surface, (0, 384))
+
+
+def draw_text(surface, text, position):
+    font = pygame.font.SysFont(None, 24)
+    text_surface = font.render(text, True, (255, 255, 255))
+    surface.blit(text_surface, position)
 
 
 def get_font():
@@ -126,6 +146,4 @@ def create_folders(folder_names):
 
 #  una logica per bilanciare le azioni di throttle e brake
 def balance_throttle_brake(throttle, brake):
-    if throttle > 0 and brake > 0:
-        brake = 0
     return throttle, brake

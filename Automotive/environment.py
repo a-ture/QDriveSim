@@ -19,7 +19,7 @@ import carla
 import random
 
 from synch_mode import CarlaSyncMode
-from controllers import PIDLongitudinalController
+
 from utils import *
 
 random.seed(78)
@@ -148,7 +148,6 @@ class SimEnv(object):
         self.actor_list.append(self.collision_sensor)
 
         # Controllore PID
-        self.speed_controller = PIDLongitudinalController(self.vehicle)
 
     # Reimposta lo stato dell'ambiente
     def reset(self):
@@ -252,7 +251,7 @@ class SimEnv(object):
                 avg_speed = speed_sum / counter if counter > 0 else 0
 
                 cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
-                reward = reward_value(cos_yaw_diff, dist, collision, total_lane_invasions,avg_speed)
+                reward = reward_value(cos_yaw_diff, dist, collision, total_lane_invasions, avg_speed)
 
                 if collision:
                     total_collisions += 1
@@ -285,6 +284,10 @@ class SimEnv(object):
                 # Draw the display.
                 if self.visuals:
                     draw_image(self.display, image_rgb_vis)
+                    draw_depth_image(self.display, image_depth)
+                    draw_segmentation_image(self.display, image_segmentation)
+                    draw_lidar_image(self.display, lidar_points)
+
                     self.display.blit(
                         self.font.render('% 5d FPS (real)' % self.clock.get_fps(), True, (255, 255, 255)),
                         (8, 10))
@@ -295,12 +298,16 @@ class SimEnv(object):
                     self.display.blit(
                         self.font.render('Speed: %.2f m/s' % speed, True, (255, 255, 255)),
                         (8, 46))
-
-                    # Draw sensor data
-                    draw_image(self.display, image_rgb)
-                    draw_depth_image(self.display, image_depth)
-                    draw_segmentation_image(self.display, image_segmentation)
-                    draw_lidar_image(self.display, lidar_points)
+                    # Aggiungi informazioni su sterzo, freno e acceleratore
+                    self.display.blit(
+                        self.font.render('Steer: %.2f' % steer, True, (255, 255, 255)),
+                        (8, 64))
+                    self.display.blit(
+                        self.font.render('Brake: %.2f' % brake, True, (255, 255, 255)),
+                        (8, 82))
+                    self.display.blit(
+                        self.font.render('Throttle: %.2f' % throttle, True, (255, 255, 255)),
+                        (8, 100))
 
                     pygame.display.flip()
 
