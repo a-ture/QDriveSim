@@ -2,8 +2,9 @@ import os
 import torch
 import pandas as pd
 import time
-from DQN_Control.replay_buffer import ReplayBuffer
+
 from DQN_Control.model import DQN
+from DQN_Control.replay_buffer import ReplayBuffer
 from config import action_map_steer, env_params, action_map_throttle, action_map_brake
 from environment import SimEnv
 from codecarbon import OfflineEmissionsTracker
@@ -20,14 +21,14 @@ def run(logger):
         # Definizione dei parametri del modello
         buffer_size = 1e4  # Dimensione del replay buffer
         batch_size = 128  # Dimensione del batch per l'addestramento
-        state_dim = (4, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
+        state_dim = (7, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se disponibile, altrimenti CPU)
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
 
-        in_channels = 4  # da cambiare in base al numero di sensori e al colore delle img
+        in_channels = 7  # da cambiare in base al numero di sensori e al colore delle img
 
         model_params = {
             'num_actions_steer': num_actions_steer,
@@ -44,7 +45,6 @@ def run(logger):
             'end_eps': 0.05,
             'eps_decay_period': 25e4,
             'eval_eps': 0.001,
-            'learning_rate': 0.1,
         }
 
         # Log dei parametri dell'ambiente e del modello
@@ -56,13 +56,21 @@ def run(logger):
         replay_buffer = ReplayBuffer(state_dim, batch_size, buffer_size, device)
 
         # Creazione del modello DQN
-        model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device)
+        model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device,
+                    discount=model_params['discount'],
+                    optimizer=model_params['optimizer'],
+                    optimizer_parameters=model_params['optimizer_parameters'],
+                    target_update_frequency=model_params['target_update_frequency'],
+                    initial_eps=model_params['initial_eps'],
+                    end_eps=model_params['end_eps'],
+                    eps_decay_period=model_params['eps_decay_period'],
+                    eval_eps=model_params['eval_eps'])
 
         # Creazione dell'ambiente di simulazione
         env = SimEnv(visuals=True, **env_params)
 
         # Ciclo di addestramento per un numero di episodi definito
-        episodes = 1300
+        episodes = 500
 
         for ep in range(episodes):
             # Creazione degli attori nell'ambiente

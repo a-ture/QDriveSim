@@ -35,9 +35,9 @@ def log_params(logger, params, title="Parameters"):
 # Funzione per loggare le metriche di CodeCarbon
 def log_codecarbon_metrics(logger, emissions):
     logger.info("CodeCarbon Metrics:")
-    logger.info(f"Energy consumed (kWh): {emissions['energy_consumed']:.4f}")
-    logger.info(f"CO2 emissions (kg): {emissions['emissions']:.4f}")
-    logger.info(f"Energy cost (USD): {emissions['energy_cost']:.4f}")
+    logger.info(f"Energy consumed (kWh): {emissions['energy_consumed']}")
+    logger.info(f"CO2 emissions (kg): {emissions['emissions']}")
+    logger.info(f"Energy cost (USD): {emissions['energy_cost']}")
 
 
 # Funzione per scrivere il separatore nel log

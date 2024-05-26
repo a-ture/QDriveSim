@@ -3,47 +3,64 @@ import cv2
 import pygame
 import math
 import numpy as np
+import numpy as np
+import cv2
 
 
 def process_img(image, dim_x=128, dim_y=128):
-    # Processa l'immagine ricevuta da Carla
-    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))  # Converte i dati dell'immagine in un array numpy
-    array = np.reshape(array,
-                       (image.height, image.width, 4))  # Ridimensiona l'array secondo le dimensioni dell'immagine
-    array = array[:, :, :3]  # Seleziona solo i canali RGB, scartando l'alpha
-    array = array[:, :, ::-1]  # Inverte l'ordine dei canali per adattarsi alla convenzione BGR di OpenCV
+    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+    array = np.reshape(array, (image.height, image.width, 4))
+    array = array[:, :, :3]
+    array = array[:, :, ::-1]
 
-    dim = (dim_x, dim_y)  # Dimensioni desiderate per l'immagine
-    resized_img = cv2.resize(array, dim, interpolation=cv2.INTER_AREA)  # Ridimensiona l'immagine
-    img_gray = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)  # Converte l'immagine in scala di grigi
-    scaled_img = img_gray / 255.  # Scala i valori dei pixel nell'intervallo [0, 1]
+    resized_img = cv2.resize(array, (dim_x, dim_y), interpolation=cv2.INTER_AREA)
+    img_gray = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
 
-    # Normalizza l'immagine
-    mean, std = 0.5, 0.5
-    normalized_img = (scaled_img - mean) / std
+    # Equalizzazione dell'istogramma con CLAHE
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    img_gray = clahe.apply(img_gray)
+
+    # Filtro di Gauss per denoising
+    img_gray = cv2.GaussianBlur(img_gray, (5, 5), 0)
+
+    # Rilevazione dei bordi con il filtro di Sobel
+    sobelx = cv2.Sobel(img_gray, cv2.CV_64F, 1, 0, ksize=5)
+    sobely = cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=5)
+    sobel = np.hypot(sobelx, sobely)
+    sobel = np.uint8(sobel / np.max(sobel) * 255)
+
+    # Unisci l'immagine originale con i bordi rilevati
+    combined = cv2.addWeighted(img_gray, 0.7, sobel, 0.3, 0)
+
+    # Normalizza l'immagine con Z-score
+    mean, std = combined.mean(), combined.std()
+    normalized_img = (combined - mean) / std
 
     return normalized_img
 
 
 def process_lidar(lidar_data, dim_x=128, dim_y=128):
-    # Esempio di elaborazione dei dati Lidar per generare una rappresentazione utilizzabile
     points = np.frombuffer(lidar_data.raw_data, dtype=np.dtype('f4'))
     points = np.reshape(points, (int(points.shape[0] / 4), 4))
 
-    # Creare un'immagine vuota
     lidar_image = np.zeros((dim_x, dim_y), dtype=np.float32)
 
-    # Popolare l'immagine con i punti del Lidar
     for point in points:
         x, y, z, _ = point
-        if -10 < x < 10 and -10 < y < 10:  # Filtro per limitare i punti entro un range
+        if -10 < x < 10 and -10 < y < 10:
             i = int((x + 10) / 20 * dim_x)
             j = int((y + 10) / 20 * dim_y)
-            lidar_image[i, j] = min(z, 1)  # Popolare l'immagine con il valore di altezza
+            lidar_image[i, j] = min(z, 1)
+
+    # Filtro mediana per ridurre il rumore
+    lidar_image = cv2.medianBlur(lidar_image, 5)
+
+    # Interpolazione bicubica per una mappa più liscia
+    lidar_image = cv2.resize(lidar_image, (dim_x, dim_y), interpolation=cv2.INTER_CUBIC)
 
     # Normalizza l'immagine
     lidar_image = cv2.normalize(lidar_image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-    lidar_image = np.uint8(lidar_image)  # Convertire a uint8
+    lidar_image = np.uint8(lidar_image)
 
     return lidar_image
 
@@ -146,6 +163,6 @@ def create_folders(folder_names):
 
 #  una logica per bilanciare le azioni di throttle e brake
 def balance_throttle_brake(throttle, brake):
-    if throttle > 0 and brake > 0:
+    if throttle > 0:
         brake = 0
     return throttle, brake

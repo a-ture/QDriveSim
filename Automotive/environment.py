@@ -38,6 +38,9 @@ class SimEnv(object):
                  max_dist_from_waypoint=20
                  ) -> None:
         # Inizializzazione degli attributi
+        self.camera_rgb_left = None
+        self.camera_rgb_right = None
+        self.camera_rgb_rear = None
         self.segmentation_sensor = None
         self.lidar_sensor = None
         self.camera_depth = None
@@ -55,7 +58,7 @@ class SimEnv(object):
         self.client = carla.Client('localhost', 2000)
         self.client.set_timeout(10.0)
 
-        self.world = self.client.load_world('Town02_Opt')
+        self.world = self.client.load_world('Town01')
         self.world.unload_map_layer(carla.MapLayer.Decals)
         self.world.unload_map_layer(carla.MapLayer.Foliage)
         self.world.unload_map_layer(carla.MapLayer.ParkedVehicles)
@@ -73,7 +76,7 @@ class SimEnv(object):
         self.target_speed = target_speed  # km/h
         self.max_iter = max_iter
         self.start_buffer = start_buffer
-        self.train_freq = train_freq
+        self.train_freq = max(1, train_freq // 2)  # Dimezza la frequenza di addestramento
         self.save_freq = save_freq
         self.start_ep = start_ep
 
@@ -113,6 +116,25 @@ class SimEnv(object):
             attach_to=self.vehicle)
         self.actor_list.append(self.camera_rgb_vis)
 
+        # Aggiungi telecamere laterali
+        self.camera_rgb_left = self.world.spawn_actor(
+            self.blueprint_library.find('sensor.camera.rgb'),
+            carla.Transform(carla.Location(x=1.5, y=-0.5, z=2.4), carla.Rotation(pitch=-15, yaw=-30)),
+            attach_to=self.vehicle)
+        self.actor_list.append(self.camera_rgb_left)
+
+        self.camera_rgb_right = self.world.spawn_actor(
+            self.blueprint_library.find('sensor.camera.rgb'),
+            carla.Transform(carla.Location(x=1.5, y=0.5, z=2.4), carla.Rotation(pitch=-15, yaw=30)),
+            attach_to=self.vehicle)
+        self.actor_list.append(self.camera_rgb_right)
+
+        self.camera_rgb_rear = self.world.spawn_actor(
+            self.blueprint_library.find('sensor.camera.rgb'),
+            carla.Transform(carla.Location(x=-1.5, z=2.4), carla.Rotation(pitch=-15, yaw=180)),
+            attach_to=self.vehicle)
+        self.actor_list.append(self.camera_rgb_rear)
+
         # Sensore di profondità
         self.camera_depth = self.world.spawn_actor(
             self.blueprint_library.find('sensor.camera.depth'),
@@ -147,8 +169,6 @@ class SimEnv(object):
             attach_to=self.vehicle)
         self.actor_list.append(self.collision_sensor)
 
-        # Controllore PID
-
     # Reimposta lo stato dell'ambiente
     def reset(self):
         for actor in self.actor_list:
@@ -156,11 +176,11 @@ class SimEnv(object):
                 actor.destroy()
 
     def calculate_metrics(self, episode, speed, total_reward, vehicle_location, waypoint, duration, timesteps,
-                          collisions, lane_invasions, avg_speed):
+                          collisions, lane_invasions, avg_speed, waypoint_distance):
         metrics_data = {
             'episode': [episode],
             'speed': [speed],
-            'total_reward': [total_reward],
+            'reward': [total_reward],
             'vehicle_location': [str(vehicle_location)],  # Convert to string to save in CSV
             'waypoint': [str(waypoint.transform.location)],  # Convert to string to save in CSV
             'duration': [duration],
@@ -168,6 +188,7 @@ class SimEnv(object):
             'collisions': [collisions],
             'lane_invasions': [lane_invasions],
             'avg_speed': [avg_speed],
+            'waypoint_similarity': waypoint_distance
         }
 
         metrics_df = pd.DataFrame(metrics_data)
@@ -180,7 +201,8 @@ class SimEnv(object):
 
     def generate_episode(self, model, replay_buffer, ep, eval=True):
         start_time = time.time()
-        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.camera_depth, self.lidar_sensor,
+        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.camera_rgb_rear,
+                           self.camera_rgb_right, self.camera_rgb_left, self.camera_depth, self.lidar_sensor,
                            self.segmentation_sensor, self.lane_invasion_sensor, self.collision_sensor,
                            fps=30) as sync_mode:
             counter = 0
@@ -188,10 +210,12 @@ class SimEnv(object):
             total_lane_invasions = 0
             speed_sum = 0
 
-            snapshot, image_rgb, image_rgb_vis, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+            waypoints = [self.world.get_map().get_waypoint(self.vehicle.get_location(), project_to_road=True,
+                                                           lane_type=carla.LaneType.Driving)]
+
+            snapshot, image_rgb, image_rgb_vis, image_rgb_rear, image_rgb_right, image_rgb_left, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                 timeout=1.0)
 
-            # destroy if there is no data
             if snapshot is None or image_rgb is None:
                 print("No data, skipping episode")
                 self.reset()
@@ -199,11 +223,15 @@ class SimEnv(object):
 
             image_rgb = process_img(image_rgb)
             image_rgb_vis = process_img(image_rgb_vis)
+            image_rgb_rear = process_img(image_rgb_rear)
+            image_rgb_right = process_img(image_rgb_right)
+            image_rgb_left = process_img(image_rgb_left)
             image_depth = process_img(camera_depth)
             image_segmentation = process_img(segmentation_sensor)
             lidar_points = process_lidar(lidar_data)
 
-            next_state = [image_rgb, image_depth, image_segmentation, lidar_points]
+            next_state = [image_rgb, image_rgb_rear, image_rgb_left, image_rgb_right, image_depth, image_segmentation,
+                          lidar_points]
 
             while True:
                 if self.visuals:
@@ -216,27 +244,23 @@ class SimEnv(object):
                 waypoint = self.world.get_map().get_waypoint(vehicle_location, project_to_road=True,
                                                              lane_type=carla.LaneType.Driving)
 
+                waypoints.append(waypoint)
                 speed = get_speed(self.vehicle)
                 speed_sum += speed
 
-                # Advance the simulation and wait for the data.
                 state = next_state
 
                 counter += 1
                 self.global_t += 1
 
                 action = model.select_action(state, eval=eval)
-                steer, brake, throttle = action  # Ottieni le azioni per sterzata, frenata e accelerazione
-                # Applica il mapping agli indici delle azioni se action_map non è None
+                steer, brake, throttle = action
                 if action is not None:
                     steer = action_map_steer[steer]
                     brake = action_map_brake[brake]
                     throttle = action_map_throttle[throttle]
 
-                # Controllo della velocità della macchina
-                # Bilancia throttle e brake
                 throttle, brake = balance_throttle_brake(throttle, brake)
-                # Applica le azioni alla macchina
                 control = self.vehicle.get_control()
                 control.throttle = throttle
                 control.brake = brake
@@ -245,13 +269,15 @@ class SimEnv(object):
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
-                snapshot, image_rgb, image_rgb_vis, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+                snapshot, image_rgb, image_rgb_vis, image_rgb_rear, image_rgb_right, image_rgb_left, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                     timeout=1.0)
 
                 avg_speed = speed_sum / counter if counter > 0 else 0
 
-                cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
-                reward = reward_value(cos_yaw_diff, dist, collision, total_lane_invasions, avg_speed)
+                cos_yaw_diff, dist, collision, waypoint_similarity = get_reward_comp(self.vehicle, waypoint, collision,
+                                                                                     waypoints)
+                reward = reward_value(cos_yaw_diff, dist, collision, total_lane_invasions, avg_speed,
+                                      waypoint_similarity)
 
                 if collision:
                     total_collisions += 1
@@ -263,42 +289,38 @@ class SimEnv(object):
                     print("Process ended here")
                     break
 
-                image = process_img(image_rgb)
-                image_depth = process_img(camera_depth)
-                image_segmentation = process_img(segmentation_sensor)
-                lidar_points = process_lidar(lidar_data)
-
                 done = 1 if collision else 0
 
                 self.total_rewards += reward
 
-                next_state = [image, image_depth, image_segmentation, lidar_points]
+                image_rgb = process_img(image_rgb)
+                image_rgb_rear = process_img(image_rgb_rear)
+                image_rgb_right = process_img(image_rgb_right)
+                image_rgb_left = process_img(image_rgb_left)
+                image_depth = process_img(camera_depth)
+                image_segmentation = process_img(segmentation_sensor)
+                lidar_points = process_lidar(lidar_data)
 
-                # Aggiungi le azioni al replay buffer
+                next_state = [image_rgb, image_rgb_rear, image_rgb_left, image_rgb_right, image_depth,
+                              image_segmentation, lidar_points]
+
                 replay_buffer.add(state, steer, brake, throttle, next_state, reward, done)
 
                 if not eval:
                     if ep > self.start_train and (self.global_t % self.train_freq) == 0:
                         model.train(replay_buffer)
 
-                # Draw the display.
                 if self.visuals:
                     draw_image(self.display, image_rgb_vis)
-                    #draw_depth_image(self.display, image_depth)
-                    #draw_segmentation_image(self.display, image_segmentation)
-                    #draw_lidar_image(self.display, lidar_points)
-
                     self.display.blit(
                         self.font.render('% 5d FPS (real)' % self.clock.get_fps(), True, (255, 255, 255)),
                         (8, 10))
                     self.display.blit(
                         self.font.render('% 5d FPS (simulated)' % fps, True, (255, 255, 255)),
                         (8, 28))
-                    # Aggiungi la velocità attuale della macchina
                     self.display.blit(
                         self.font.render('Speed: %.2f m/s' % speed, True, (255, 255, 255)),
                         (8, 46))
-                    # Aggiungi informazioni su sterzo, freno e acceleratore
                     self.display.blit(
                         self.font.render('Steer: %.2f' % steer, True, (255, 255, 255)),
                         (8, 64))
@@ -316,7 +338,7 @@ class SimEnv(object):
                     duration = time.time() - start_time
 
                     self.calculate_metrics(ep, speed, reward, vehicle_location, waypoint, duration, counter,
-                                           total_collisions, total_lane_invasions, avg_speed)
+                                           total_collisions, total_lane_invasions, avg_speed,waypoint_similarity)
                     break
 
             if ep % self.save_freq == 0 and ep > 0:
@@ -338,8 +360,29 @@ class SimEnv(object):
         pygame.quit()
 
 
+def calculate_waypoint_similarity(vehicle, waypoints):
+    """
+    Calcola la similarità con i waypoint misurando la distanza euclidea tra
+    la posizione attuale del veicolo e i waypoint successivi.
+    :param vehicle: Il veicolo attuale.
+    :param waypoints: Lista di waypoint da seguire.
+    :return: La somma delle distanze ai waypoint.
+    """
+    vehicle_location = vehicle.get_location()
+    distances = []
+
+    for waypoint in waypoints:
+        wp_location = waypoint.transform.location
+        distance = vehicle_location.distance(wp_location)
+        distances.append(distance)
+
+    # La similarità può essere definita come l'inverso della somma delle distanze
+    similarity = 1.0 / (sum(distances) + 1e-6)  # Aggiungi un piccolo valore per evitare divisioni per zero
+    return similarity
+
+
 # Calcola i componenti della ricompensa
-def get_reward_comp(vehicle, waypoint, collision):
+def get_reward_comp(vehicle, waypoint, collision, waypoints):
     vehicle_location = vehicle.get_location()
     x_wp = waypoint.transform.location.x
     y_wp = waypoint.transform.location.y
@@ -358,12 +401,15 @@ def get_reward_comp(vehicle, waypoint, collision):
 
     collision = 0 if collision is None else 1
 
-    return cos_yaw_diff, dist, collision
+    # Calcola la similarità con i waypoint
+    waypoint_similarity = calculate_waypoint_similarity(vehicle, waypoints)
+
+    return cos_yaw_diff, dist, collision, waypoint_similarity
 
 
-# Calcola il valore della ricompensa
-def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, target_speed=15, lambda_1=1, lambda_2=1,
-                 lambda_3=5, lambda_4=2, lambda_5=0.5):
+# Calcola il valore della ricompensaA
+def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, waypoint_similarity, target_speed=15, lambda_1=1, lambda_2=1,
+                 lambda_3=5, lambda_4=2, lambda_5=1, lambda_6=1, yaw_penalty=2, lane_penalty=2):
     """
     Calcola il valore della ricompensa.
     :param cos_yaw_diff: Differenza di orientamento tra il veicolo e il waypoint.
@@ -371,15 +417,19 @@ def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, target_spe
     :param collision: Indicatore di collisione (1 se c'è stata una collisione, 0 altrimenti).
     :param lane_invasion: Indicatore di invasione di corsia (1 se c'è stata un'invasione di corsia, 0 altrimenti).
     :param speed: Velocità attuale del veicolo.
+    :param waypoint_similarity: Similarità con i waypoint.
     :param target_speed: Velocità target che il veicolo dovrebbe mantenere.
     :param lambda_1: Peso del termine cos_yaw_diff.
     :param lambda_2: Peso del termine dist.
     :param lambda_3: Peso del termine collision.
     :param lambda_4: Peso del termine per la velocità.
     :param lambda_5: Peso del termine per l'invasione di corsia.
+    :param lambda_6: Peso del termine per la similarità con i waypoint.
+    :param yaw_penalty: Penalità per la differenza di orientamento.
     :return: Ricompensa calcolata.
     """
     speed_diff = abs(speed - target_speed)
     reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision) - (lambda_4 * speed_diff) - (
-            lambda_5 * lane_invasion)
+            lambda_5 * lane_invasion * 2) - (yaw_penalty * (1 - cos_yaw_diff)) - (lane_penalty * dist * 2) + (
+                     lambda_6 * waypoint_similarity)
     return reward
