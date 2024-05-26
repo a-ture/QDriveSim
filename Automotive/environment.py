@@ -284,9 +284,9 @@ class SimEnv(object):
                 # Draw the display.
                 if self.visuals:
                     draw_image(self.display, image_rgb_vis)
-                    draw_depth_image(self.display, image_depth)
-                    draw_segmentation_image(self.display, image_segmentation)
-                    draw_lidar_image(self.display, lidar_points)
+                    #draw_depth_image(self.display, image_depth)
+                    #draw_segmentation_image(self.display, image_segmentation)
+                    #draw_lidar_image(self.display, lidar_points)
 
                     self.display.blit(
                         self.font.render('% 5d FPS (real)' % self.clock.get_fps(), True, (255, 255, 255)),
@@ -315,7 +315,7 @@ class SimEnv(object):
                     print("Episode {} processed".format(ep), counter, "total reward: ", reward)
                     duration = time.time() - start_time
 
-                    self.calculate_metrics(ep, speed, self.total_rewards, vehicle_location, waypoint, duration, counter,
+                    self.calculate_metrics(ep, speed, reward, vehicle_location, waypoint, duration, counter,
                                            total_collisions, total_lane_invasions, avg_speed)
                     break
 

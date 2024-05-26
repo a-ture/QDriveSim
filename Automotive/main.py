@@ -10,12 +10,12 @@ def run():
         # Definizione dei parametri
         buffer_size = 1e4  # Dimensione del replay buffer
         batch_size = 32  # Dimensione del batch per il test
-        state_dim = (3,128, 128)  # Dimensione dello stato (immagine 128x128)
+        state_dim = (4,128, 128)  # Dimensione dello stato (immagine 128x128)
         device = "cuda"  # Dispositivo su cui eseguire il modello ()
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili
-        in_channels = 3  # Numero di canali dell'immagine (scala di grigi)
+        in_channels = 4  # Numero di canali dell'immagine (scala di grigi)
         episodes = 100  # Numero di episodi da eseguire per il test
 
         # Creazione del replay buffer
@@ -25,7 +25,7 @@ def run():
         model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device)
 
         # Caricamento dei pesi del modello addestrato
-        model.load('weights/model_ep_50')
+        model.load('weights/model_ep_500')
 
         # Impostazione dell'ambiente di simulazione
         env = SimEnv(visuals=True, **env_params)

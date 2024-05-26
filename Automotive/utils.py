@@ -146,4 +146,6 @@ def create_folders(folder_names):
 
 #  una logica per bilanciare le azioni di throttle e brake
 def balance_throttle_brake(throttle, brake):
+    if throttle > 0 and brake > 0:
+        brake = 0
     return throttle, brake

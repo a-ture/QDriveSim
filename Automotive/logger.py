@@ -26,5 +26,21 @@ def close_loggers(loggers: List[logging.Logger]):
             handler.close()
 
 
-def save_result():
-    pass
+def log_params(logger, params, title="Parameters"):
+    logger.info(f"{title}:")
+    for key, value in params.items():
+        logger.info(f"{key}: {value}")
+
+
+# Funzione per loggare le metriche di CodeCarbon
+def log_codecarbon_metrics(logger, emissions):
+    logger.info("CodeCarbon Metrics:")
+    logger.info(f"Energy consumed (kWh): {emissions['energy_consumed']:.4f}")
+    logger.info(f"CO2 emissions (kg): {emissions['emissions']:.4f}")
+    logger.info(f"Energy cost (USD): {emissions['energy_cost']:.4f}")
+
+
+# Funzione per scrivere il separatore nel log
+def write_separator(logger):
+    separator = '\n------------------------------------\n'
+    logger.info(separator)

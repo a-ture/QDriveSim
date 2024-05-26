@@ -2,6 +2,7 @@ import torch
 import copy
 import numpy as np
 import torch.nn as nn
+
 import torch.nn.functional as F
 
 
@@ -48,13 +49,15 @@ class DQN(object):
             device,
             discount=0.9,
             optimizer="Adam",
-            optimizer_parameters={'lr': 0.01},
+            optimizer_parameters=None,
             target_update_frequency=1e4,
             initial_eps=1,
             end_eps=0.05,
             eps_decay_period=25e4,
             eval_eps=0.001
     ) -> None:
+        if optimizer_parameters is None:
+            optimizer_parameters = {'lr': 0.01}
         self.current_eps = None
         self.device = device
 
@@ -62,6 +65,8 @@ class DQN(object):
             self.device)
         self.Q_target = copy.deepcopy(self.Q)
         self.Q_optimizer = getattr(torch.optim, optimizer)(self.Q.parameters(), **optimizer_parameters)
+
+        self.lr = optimizer_parameters['lr']  # Inizializza il tasso di apprendimento
 
         self.discount = discount
         self.target_update_frequency = target_update_frequency
@@ -99,6 +104,16 @@ class DQN(object):
 
     def train(self, replay_buffer):
         self.Q.train()
+
+        # Aggiorna il tasso di apprendimento riducendolo gradualmente ad ogni iterazione.
+        # Questa strategia utilizza una riduzione lineare del tasso di apprendimento,
+        # diminuendo il valore del tasso di apprendimento di un valore fisso ad ogni iterazione
+        # fino a raggiungere un valore minimo. Questo aiuta a adattare dinamicamente il
+        # tasso di apprendimento durante l'addestramento per una migliore convergenza del modello.
+        self.lr = max(self.lr - 0.00001, 0.00001)  # Riduzione lineare del tasso di apprendimento
+        for param_group in self.Q_optimizer.param_groups:
+            param_group['lr'] = self.lr
+
         # Sample mininbatch from replay buffer
         state, steer, brake, throttle, next_state, reward, done = replay_buffer.sample()
 
