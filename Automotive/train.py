@@ -21,14 +21,14 @@ def run(logger):
         # Definizione dei parametri del modello
         buffer_size = 1e4  # Dimensione del replay buffer
         batch_size = 128  # Dimensione del batch per l'addestramento
-        state_dim = (7, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
+        state_dim = (5, 256, 256)  # Dimensione dello stato Da cambiare in base al numero di sensori
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se disponibile, altrimenti CPU)
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
 
-        in_channels = 7  # da cambiare in base al numero di sensori e al colore delle img
+        in_channels = 5  # da cambiare in base al numero di sensori e al colore delle img
 
         model_params = {
             'num_actions_steer': num_actions_steer,
@@ -70,11 +70,12 @@ def run(logger):
         env = SimEnv(visuals=True, **env_params)
 
         # Ciclo di addestramento per un numero di episodi definito
-        episodes = 500
+        episodes = 1500
 
         for ep in range(episodes):
             # Creazione degli attori nell'ambiente
             env.create_actors()
+
             # Generazione dell'episodio e addestramento del modello
             env.generate_episode(model, replay_buffer, ep, eval=False)
             # Reimpostazione dell'ambiente per il prossimo episodio
@@ -95,33 +96,33 @@ if __name__ == "__main__":
 
     logger = setup_logger('logger', os.path.join('log', 'logger.log'))
 
-    tracker = OfflineEmissionsTracker(country_iso_code="ITA")
-    tracker.start()
+    # tracker = OfflineEmissionsTracker(country_iso_code="ITA")
+    # tracker.start()
 
     try:
         run(logger)
     finally:
-        tracker.stop()
-        emissions_csv = pd.read_csv("emissions.csv")
-
-        last_emissions = emissions_csv.tail(1)  # Ottenere l'ultima riga del dataframe
-        emissions = last_emissions["emissions"].iloc[0] * 1000  # Estrai il valore numerico dall'ultima riga
-
-        energy = last_emissions["energy_consumed"]
-        cpu = last_emissions["cpu_energy"]
-        gpu = last_emissions["gpu_energy"]
-        ram = last_emissions["ram_energy"]
-
-        write_separator(logger)
-
-        # Log delle metriche
-        logger.info(f"Emissioni: {emissions} g")
-        logger.info(f"Energia consumata: {energy} kWh")
-        logger.info(f"Energia CPU: {cpu} J")
-        logger.info(f"Energia GPU: {gpu} J")
-        logger.info(f"Energia RAM: {ram} J")
-
-        # Log delle metriche di CodeCarbon
-        log_codecarbon_metrics(logger, emissions)
+        # tracker.stop()
+        # emissions_csv = pd.read_csv("emissions.csv")
+        #
+        # last_emissions = emissions_csv.tail(1)  # Ottenere l'ultima riga del dataframe
+        # emissions = last_emissions["emissions"].iloc[0] * 1000  # Estrai il valore numerico dall'ultima riga
+        #
+        # energy = last_emissions["energy_consumed"]
+        # cpu = last_emissions["cpu_energy"]
+        # gpu = last_emissions["gpu_energy"]
+        # ram = last_emissions["ram_energy"]
+        #
+        # write_separator(logger)
+        #
+        # # Log delle metriche
+        # logger.info(f"Emissioni: {emissions} g")
+        # logger.info(f"Energia consumata: {energy} kWh")
+        # logger.info(f"Energia CPU: {cpu} J")
+        # logger.info(f"Energia GPU: {gpu} J")
+        # logger.info(f"Energia RAM: {ram} J")
+        #
+        # # Log delle metriche di CodeCarbon
+        # log_codecarbon_metrics(logger, emissions)
         close_loggers([logger])
         del logger

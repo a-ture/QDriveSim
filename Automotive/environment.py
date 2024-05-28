@@ -40,7 +40,7 @@ class SimEnv(object):
         # Inizializzazione degli attributi
         self.camera_rgb_left = None
         self.camera_rgb_right = None
-        self.camera_rgb_rear = None
+
         self.segmentation_sensor = None
         self.lidar_sensor = None
         self.camera_depth = None
@@ -129,12 +129,6 @@ class SimEnv(object):
             attach_to=self.vehicle)
         self.actor_list.append(self.camera_rgb_right)
 
-        self.camera_rgb_rear = self.world.spawn_actor(
-            self.blueprint_library.find('sensor.camera.rgb'),
-            carla.Transform(carla.Location(x=-1.5, z=2.4), carla.Rotation(pitch=-15, yaw=180)),
-            attach_to=self.vehicle)
-        self.actor_list.append(self.camera_rgb_rear)
-
         # Sensore di profondità
         self.camera_depth = self.world.spawn_actor(
             self.blueprint_library.find('sensor.camera.depth'),
@@ -175,11 +169,11 @@ class SimEnv(object):
             if actor.is_alive:
                 actor.destroy()
 
-    def calculate_metrics(self, episode, speed, total_reward, vehicle_location, waypoint, duration, timesteps,
-                          collisions, lane_invasions, avg_speed, waypoint_distance):
+    def calculate_metrics(self, episode, total_reward, vehicle_location, waypoint, duration, timesteps,
+                          collisions, lane_invasions, avg_speed, waypoint_distance, total_distance, max_speed,
+                          hard_brakes):
         metrics_data = {
             'episode': [episode],
-            'speed': [speed],
             'reward': [total_reward],
             'vehicle_location': [str(vehicle_location)],  # Convert to string to save in CSV
             'waypoint': [str(waypoint.transform.location)],  # Convert to string to save in CSV
@@ -188,7 +182,10 @@ class SimEnv(object):
             'collisions': [collisions],
             'lane_invasions': [lane_invasions],
             'avg_speed': [avg_speed],
-            'waypoint_similarity': waypoint_distance
+            'waypoint_similarity': waypoint_distance,
+            'total_distance': [total_distance],
+            'max_speed': [max_speed],
+            'hard_brakes': [hard_brakes]
         }
 
         metrics_df = pd.DataFrame(metrics_data)
@@ -201,19 +198,23 @@ class SimEnv(object):
 
     def generate_episode(self, model, replay_buffer, ep, eval=True):
         start_time = time.time()
-        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.camera_rgb_rear,
-                           self.camera_rgb_right, self.camera_rgb_left, self.camera_depth, self.lidar_sensor,
+        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,
+                           self.camera_rgb_right, self.camera_rgb_left, self.camera_depth,
                            self.segmentation_sensor, self.lane_invasion_sensor, self.collision_sensor,
                            fps=30) as sync_mode:
             counter = 0
             total_collisions = 0
             total_lane_invasions = 0
             speed_sum = 0
+            total_distance = 0
+            max_speed = 0
+            hard_brakes = 0
+            previous_speed = 0
 
             waypoints = [self.world.get_map().get_waypoint(self.vehicle.get_location(), project_to_road=True,
                                                            lane_type=carla.LaneType.Driving)]
 
-            snapshot, image_rgb, image_rgb_vis, image_rgb_rear, image_rgb_right, image_rgb_left, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+            snapshot, image_rgb, image_rgb_vis, image_rgb_right, image_rgb_left, camera_depth, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                 timeout=1.0)
 
             if snapshot is None or image_rgb is None:
@@ -223,15 +224,12 @@ class SimEnv(object):
 
             image_rgb = process_img(image_rgb)
             image_rgb_vis = process_img(image_rgb_vis)
-            image_rgb_rear = process_img(image_rgb_rear)
             image_rgb_right = process_img(image_rgb_right)
             image_rgb_left = process_img(image_rgb_left)
             image_depth = process_img(camera_depth)
             image_segmentation = process_img(segmentation_sensor)
-            lidar_points = process_lidar(lidar_data)
 
-            next_state = [image_rgb, image_rgb_rear, image_rgb_left, image_rgb_right, image_depth, image_segmentation,
-                          lidar_points]
+            next_state = [image_rgb, image_rgb_left, image_rgb_right, image_depth, image_segmentation]
 
             while True:
                 if self.visuals:
@@ -247,6 +245,22 @@ class SimEnv(object):
                 waypoints.append(waypoint)
                 speed = get_speed(self.vehicle)
                 speed_sum += speed
+
+                # Aggiorna la distanza totale percorsa
+                if counter > 0:
+                    previous_location = waypoints[-2].transform.location
+                    distance = vehicle_location.distance(previous_location)
+                    total_distance += distance
+
+                # Aggiorna la velocità massima raggiunta
+                if speed > max_speed:
+                    max_speed = speed
+
+                # Conta le frenate brusche
+                if previous_speed - speed > 5:  # Assumiamo che una frenata brusca sia una decelerazione > 5 m/s²
+                    hard_brakes += 1
+
+                previous_speed = speed
 
                 state = next_state
 
@@ -269,7 +283,7 @@ class SimEnv(object):
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
-                snapshot, image_rgb, image_rgb_vis, image_rgb_rear, image_rgb_right, image_rgb_left, camera_depth, lidar_data, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+                snapshot, image_rgb, image_rgb_vis, image_rgb_right, image_rgb_left, camera_depth, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                     timeout=1.0)
 
                 avg_speed = speed_sum / counter if counter > 0 else 0
@@ -285,7 +299,7 @@ class SimEnv(object):
                 if lane_invasion:
                     total_lane_invasions += 1
 
-                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None or lidar_data is None or segmentation_sensor is None or camera_depth is None:
+                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None is None or segmentation_sensor is None or camera_depth is None:
                     print("Process ended here")
                     break
 
@@ -294,15 +308,14 @@ class SimEnv(object):
                 self.total_rewards += reward
 
                 image_rgb = process_img(image_rgb)
-                image_rgb_rear = process_img(image_rgb_rear)
+
                 image_rgb_right = process_img(image_rgb_right)
                 image_rgb_left = process_img(image_rgb_left)
                 image_depth = process_img(camera_depth)
                 image_segmentation = process_img(segmentation_sensor)
-                lidar_points = process_lidar(lidar_data)
 
-                next_state = [image_rgb, image_rgb_rear, image_rgb_left, image_rgb_right, image_depth,
-                              image_segmentation, lidar_points]
+                next_state = [image_rgb, image_rgb_left, image_rgb_right, image_depth,
+                              image_segmentation]
 
                 replay_buffer.add(state, steer, brake, throttle, next_state, reward, done)
 
@@ -337,8 +350,9 @@ class SimEnv(object):
                     print("Episode {} processed".format(ep), counter, "total reward: ", reward)
                     duration = time.time() - start_time
 
-                    self.calculate_metrics(ep, speed, reward, vehicle_location, waypoint, duration, counter,
-                                           total_collisions, total_lane_invasions, avg_speed,waypoint_similarity)
+                    self.calculate_metrics(ep, reward, vehicle_location, waypoint, duration, counter,
+                                           total_collisions, total_lane_invasions, avg_speed, waypoint_similarity,
+                                           total_distance, max_speed, hard_brakes)
                     break
 
             if ep % self.save_freq == 0 and ep > 0:
@@ -408,7 +422,8 @@ def get_reward_comp(vehicle, waypoint, collision, waypoints):
 
 
 # Calcola il valore della ricompensaA
-def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, waypoint_similarity, target_speed=15, lambda_1=1, lambda_2=1,
+def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, waypoint_similarity, target_speed=15, lambda_1=1,
+                 lambda_2=1,
                  lambda_3=5, lambda_4=2, lambda_5=1, lambda_6=1, yaw_penalty=2, lane_penalty=2):
     """
     Calcola il valore della ricompensa.

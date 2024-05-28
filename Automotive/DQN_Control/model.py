@@ -4,22 +4,36 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
 
 class DuelingConvNetLSTM(nn.Module):
     def __init__(self, in_channels, num_actions_steer, num_actions_brake, num_actions_throttle) -> None:
         super(DuelingConvNetLSTM, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 32, 8, 4)
         self.conv1_bn = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, 4, 3)
+        self.conv2 = nn.Conv2d(32, 64, 4, 2)
         self.conv2_bn = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(64, 128, 3, 1)
+        self.conv3 = nn.Conv2d(64, 128, 3, 2)
         self.conv3_bn = nn.BatchNorm2d(128)
         self.conv4 = nn.Conv2d(128, 128, 3, 1)
         self.conv4_bn = nn.BatchNorm2d(128)
         self.conv5 = nn.Conv2d(128, 128, 3, 1)
         self.conv5_bn = nn.BatchNorm2d(128)
 
-        self.lstm = nn.LSTM(128 * 4 * 4, 512, batch_first=True)
+        # Strati aggiuntivi
+        self.conv6 = nn.Conv2d(128, 256, 3, 1)
+        self.conv6_bn = nn.BatchNorm2d(256)
+        self.conv7 = nn.Conv2d(256, 256, 3, 1)
+        self.conv7_bn = nn.BatchNorm2d(256)
+
+        # Calcola la dimensione dell'output dopo i livelli convoluzionali
+        self.lstm_input_size = self._get_conv_output_size(in_channels)
+
+        self.lstm = nn.LSTM(self.lstm_input_size, 512, batch_first=True)
 
         self.fc1 = nn.Linear(512, 256)
         self.fc1_bn = nn.BatchNorm1d(256)
@@ -34,6 +48,18 @@ class DuelingConvNetLSTM(nn.Module):
         self.adv_brake = nn.Linear(128, num_actions_brake)
         self.adv_throttle = nn.Linear(128, num_actions_throttle)
 
+    def _get_conv_output_size(self, in_channels):
+        # Funzione per calcolare la dimensione dell'output dopo i livelli convoluzionali
+        dummy_input = torch.zeros(1, in_channels, 256, 256)
+        x = F.relu(self.conv1_bn(self.conv1(dummy_input)))
+        x = F.relu(self.conv2_bn(self.conv2(x)))
+        x = F.relu(self.conv3_bn(self.conv3(x)))
+        x = F.relu(self.conv4_bn(self.conv4(x)))
+        x = F.relu(self.conv5_bn(self.conv5(x)))
+        x = F.relu(self.conv6_bn(self.conv6(x)))  # Strato aggiuntivo
+        x = F.relu(self.conv7_bn(self.conv7(x)))  # Strato aggiuntivo
+        return int(np.prod(x.size()))
+
     def forward(self, x):
         batch_size = x.size(0)
         x = F.relu(self.conv1_bn(self.conv1(x)))
@@ -41,6 +67,8 @@ class DuelingConvNetLSTM(nn.Module):
         x = F.relu(self.conv3_bn(self.conv3(x)))
         x = F.relu(self.conv4_bn(self.conv4(x)))
         x = F.relu(self.conv5_bn(self.conv5(x)))
+        x = F.relu(self.conv6_bn(self.conv6(x)))  # Strato aggiuntivo
+        x = F.relu(self.conv7_bn(self.conv7(x)))  # Strato aggiuntivo
         x = x.view(batch_size, -1)
         self.lstm.flatten_parameters()
         x, _ = self.lstm(x.unsqueeze(1))

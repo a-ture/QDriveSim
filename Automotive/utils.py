@@ -1,13 +1,12 @@
 import os
-import cv2
 import pygame
 import math
-import numpy as np
+
 import numpy as np
 import cv2
 
 
-def process_img(image, dim_x=128, dim_y=128):
+def process_img(image, dim_x=256, dim_y=256):
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     array = np.reshape(array, (image.height, image.width, 4))
     array = array[:, :, :3]
@@ -39,7 +38,7 @@ def process_img(image, dim_x=128, dim_y=128):
     return normalized_img
 
 
-def process_lidar(lidar_data, dim_x=128, dim_y=128):
+def process_lidar(lidar_data, dim_x=256, dim_y=256):
     points = np.frombuffer(lidar_data.raw_data, dtype=np.dtype('f4'))
     points = np.reshape(points, (int(points.shape[0] / 4), 4))
 
