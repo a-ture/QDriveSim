@@ -1,6 +1,6 @@
 import os
 import torch
-import pandas as pd
+
 import time
 
 from DQN_Control.model import DQN
@@ -9,7 +9,7 @@ from config import action_map_steer, env_params, action_map_throttle, action_map
 from environment import SimEnv
 from codecarbon import OfflineEmissionsTracker
 
-from logger import setup_logger, close_loggers, log_params, log_codecarbon_metrics, write_separator
+from logger import setup_logger, close_loggers, log_params, write_separator
 from utils import create_folders
 
 
@@ -21,7 +21,7 @@ def run(logger):
         # Definizione dei parametri del modello
         buffer_size = 1e4  # Dimensione del replay buffer
         batch_size = 128  # Dimensione del batch per l'addestramento
-        state_dim = (5, 256, 256)  # Dimensione dello stato Da cambiare in base al numero di sensori
+        state_dim = (5, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se disponibile, altrimenti CPU)
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
@@ -70,14 +70,14 @@ def run(logger):
         env = SimEnv(visuals=True, **env_params)
 
         # Ciclo di addestramento per un numero di episodi definito
-        episodes = 1500
+        episodes = 3000
 
         for ep in range(episodes):
             # Creazione degli attori nell'ambiente
             env.create_actors()
 
             # Generazione dell'episodio e addestramento del modello
-            env.generate_episode(model, replay_buffer, ep, eval=False)
+            env.generate_episode(model, replay_buffer, ep, evaluation=False)
             # Reimpostazione dell'ambiente per il prossimo episodio
             env.reset()
 

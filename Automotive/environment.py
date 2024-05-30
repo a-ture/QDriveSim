@@ -2,8 +2,9 @@ import glob
 import os
 import sys
 import time
-
+import random
 import pandas as pd
+
 from config import action_map_steer, action_map_brake, action_map_throttle
 
 # Aggiungi il percorso per importare i moduli di Carla
@@ -16,16 +17,55 @@ except IndexError:
     pass
 
 import carla
-import random
 
 from synch_mode import CarlaSyncMode
-
 from utils import *
 
 random.seed(78)
 
 
-# Definizione della classe SimEnv
+def is_curve(waypoints, threshold=10.0):
+    """
+    Determine if a sequence of waypoints represents a curve based on the angle change.
+    :param waypoints: A list of consecutive waypoints.
+    :param threshold: The minimum change in angle to consider as a curve.
+    :return: True if the waypoints represent a curve, False otherwise.
+    """
+    for i in range(len(waypoints) - 1):
+        current_yaw = waypoints[i].transform.rotation.yaw
+        next_yaw = waypoints[i + 1].transform.rotation.yaw
+        angle_diff = abs(next_yaw - current_yaw)
+        if angle_diff > threshold:
+            return True
+    return False
+
+
+def find_curve_spawn_points(world, distance_before_curve=10.0, threshold=10.0):
+    """
+    Find spawn points a certain distance before curves.
+    :param world: The Carla world object.
+    :param distance_before_curve: Distance in meters before the curve to place the spawn point.
+    :param threshold: The minimum change in angle to consider as a curve.
+    :return: List of spawn points before curves.
+    """
+    map = world.get_map()
+    all_spawn_points = map.get_spawn_points()
+    curve_spawn_points = []
+
+    waypoints = map.generate_waypoints(2.0)  # Generate waypoints with a distance of 2 meters between them
+
+    for i in range(len(waypoints) - 5):  # Check groups of 5 waypoints to determine curves
+        if is_curve(waypoints[i:i + 5], threshold):
+            curve_point = waypoints[i]
+            # Find the nearest spawn point before the curve
+            for spawn_point in all_spawn_points:
+                if spawn_point.location.distance(curve_point.transform.location) < distance_before_curve:
+                    curve_spawn_points.append(spawn_point)
+                    break
+
+    return curve_spawn_points
+
+
 class SimEnv(object):
     def __init__(self,
                  visuals=True,
@@ -58,7 +98,21 @@ class SimEnv(object):
         self.client = carla.Client('localhost', 2000)
         self.client.set_timeout(10.0)
 
-        self.world = self.client.load_world('Town01')
+        # Percorso al file .xodr
+        xodr_path = "C:/Users/aless/Desktop/WindowsNoEditor/Import/Example_2.xodr"
+
+        # Lettura del file .xodr
+        with open(xodr_path, 'r') as f:
+            xodr_data = f.read()
+
+        # Generazione del mondo dalla mappa OpenDRIVE
+        self.world = self.client.generate_opendrive_world(xodr_data)
+
+        # Verifica se il mondo è stato generato correttamente
+        if self.world is None:
+            raise RuntimeError("Errore nel caricamento della mappa.")
+
+        # self.world = self.client.load_world('Example_2.xodr')
         self.world.unload_map_layer(carla.MapLayer.Decals)
         self.world.unload_map_layer(carla.MapLayer.Foliage)
         self.world.unload_map_layer(carla.MapLayer.ParkedVehicles)
@@ -98,10 +152,20 @@ class SimEnv(object):
 
     # Creazione degli attori nell'ambiente
     def create_actors(self):
+
         self.actor_list = []
         # spawn vehicle at random location
         self.vehicle = self.world.spawn_actor(self.vehicle_blueprint, random.choice(self.spawn_points))
         self.actor_list.append(self.vehicle)
+
+        # # Trova i punti di spawn vicini alle curve
+        # curve_spawn_points = find_curve_spawn_points(self.world, threshold=10.0)
+        # if not curve_spawn_points:
+        #     raise ValueError("No curve spawn points found. Adjust the threshold or ensure the map has curves.")
+        #
+        # # Spawn vehicle at a random curve location
+        # self.vehicle = self.world.spawn_actor(self.vehicle_blueprint, random.choice(curve_spawn_points))
+        # self.actor_list.append(self.vehicle)
 
         # Sensori RGB
         self.camera_rgb = self.world.spawn_actor(
@@ -196,7 +260,7 @@ class SimEnv(object):
         else:
             metrics_df.to_csv(metrics_file, mode='a', header=False, index=False)
 
-    def generate_episode(self, model, replay_buffer, ep, eval=True):
+    def generate_episode(self, model, replay_buffer, ep, evaluation=True):
         start_time = time.time()
         with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,
                            self.camera_rgb_right, self.camera_rgb_left, self.camera_depth,
@@ -210,9 +274,12 @@ class SimEnv(object):
             max_speed = 0
             hard_brakes = 0
             previous_speed = 0
+            no_collision_timesteps = 0  # Timestep senza collisioni
 
             waypoints = [self.world.get_map().get_waypoint(self.vehicle.get_location(), project_to_road=True,
                                                            lane_type=carla.LaneType.Driving)]
+
+            previous_location = self.vehicle.get_location()  # Inizializza la posizione precedente
 
             snapshot, image_rgb, image_rgb_vis, image_rgb_right, image_rgb_left, camera_depth, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
                 timeout=1.0)
@@ -239,18 +306,16 @@ class SimEnv(object):
 
                 vehicle_location = self.vehicle.get_location()
 
+                # Calcola la distanza percorsa
+                distance = vehicle_location.distance(previous_location)
+                total_distance += distance
+                previous_location = vehicle_location
+
                 waypoint = self.world.get_map().get_waypoint(vehicle_location, project_to_road=True,
                                                              lane_type=carla.LaneType.Driving)
 
-                waypoints.append(waypoint)
                 speed = get_speed(self.vehicle)
                 speed_sum += speed
-
-                # Aggiorna la distanza totale percorsa
-                if counter > 0:
-                    previous_location = waypoints[-2].transform.location
-                    distance = vehicle_location.distance(previous_location)
-                    total_distance += distance
 
                 # Aggiorna la velocità massima raggiunta
                 if speed > max_speed:
@@ -267,7 +332,7 @@ class SimEnv(object):
                 counter += 1
                 self.global_t += 1
 
-                action = model.select_action(state, eval=eval)
+                action = model.select_action(state, eval=evaluation)
                 steer, brake, throttle = action
                 if action is not None:
                     steer = action_map_steer[steer]
@@ -291,10 +356,13 @@ class SimEnv(object):
                 cos_yaw_diff, dist, collision, waypoint_similarity = get_reward_comp(self.vehicle, waypoint, collision,
                                                                                      waypoints)
                 reward = reward_value(cos_yaw_diff, dist, collision, total_lane_invasions, avg_speed,
-                                      waypoint_similarity)
+                                      waypoint_similarity, no_collision_timesteps)
 
                 if collision:
                     total_collisions += 1
+                    no_collision_timesteps = 0  # Resetta il contatore se c'è stata una collisione
+                else:
+                    no_collision_timesteps += 1  # Incrementa il contatore se non c'è stata collisione
 
                 if lane_invasion:
                     total_lane_invasions += 1
@@ -319,7 +387,7 @@ class SimEnv(object):
 
                 replay_buffer.add(state, steer, brake, throttle, next_state, reward, done)
 
-                if not eval:
+                if not evaluation:
                     if ep > self.start_train and (self.global_t % self.train_freq) == 0:
                         model.train(replay_buffer)
 
@@ -346,7 +414,12 @@ class SimEnv(object):
 
                     pygame.display.flip()
 
-                if collision == 1 or counter >= self.max_iter or dist > self.max_dist_from_waypoint:
+                # Evidenzia i waypoint
+                for wp in waypoints:
+                    self.world.debug.draw_point(wp.transform.location, size=0.1, color=carla.Color(0, 255, 0),
+                                                life_time=0.1)
+
+                if collision == 1 or counter >= self.max_iter:
                     print("Episode {} processed".format(ep), counter, "total reward: ", reward)
                     duration = time.time() - start_time
 
@@ -421,10 +494,9 @@ def get_reward_comp(vehicle, waypoint, collision, waypoints):
     return cos_yaw_diff, dist, collision, waypoint_similarity
 
 
-# Calcola il valore della ricompensaA
-def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, waypoint_similarity, target_speed=15, lambda_1=1,
-                 lambda_2=1,
-                 lambda_3=5, lambda_4=2, lambda_5=1, lambda_6=1, yaw_penalty=2, lane_penalty=2):
+def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, waypoint_similarity, no_collision_timesteps,
+                 target_speed=15, lambda_1=1, lambda_2=1, lambda_3=20, lambda_4=2, lambda_5=1, lambda_6=1,
+                 yaw_penalty=2, lane_penalty=2, timestep_reward=0.1):
     """
     Calcola il valore della ricompensa.
     :param cos_yaw_diff: Differenza di orientamento tra il veicolo e il waypoint.
@@ -441,10 +513,30 @@ def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, waypoint_s
     :param lambda_5: Peso del termine per l'invasione di corsia.
     :param lambda_6: Peso del termine per la similarità con i waypoint.
     :param yaw_penalty: Penalità per la differenza di orientamento.
+    :param lane_penalty: Penalità per la distanza dalla corsia.
+    :param timestep_reward: Ricompensa per ogni timestep senza collisioni.
+    :param no_collision_timesteps: Numero di timestep consecutivi senza collisioni.
     :return: Ricompensa calcolata.
     """
+    # Differenza di velocità dalla velocità target
     speed_diff = abs(speed - target_speed)
-    reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision) - (lambda_4 * speed_diff) - (
-            lambda_5 * lane_invasion * 2) - (yaw_penalty * (1 - cos_yaw_diff)) - (lane_penalty * dist * 2) + (
-                     lambda_6 * waypoint_similarity)
+
+    reward = (
+            (lambda_1 * cos_yaw_diff) -
+            (lambda_2 * dist) -
+            (lambda_3 * collision) -
+            (lambda_4 * speed_diff) -
+            (lambda_5 * lane_invasion * 2) -
+            (yaw_penalty * (1 - cos_yaw_diff)) -
+            (lane_penalty * dist * 2) +
+            (lambda_6 * waypoint_similarity)
+    )
+
+    # Aggiungi una ricompensa per mantenere la velocità target
+    if target_speed + 2 >= speed >= target_speed - 2:
+        reward += 2
+
+    # Aggiungi ricompensa per timestep senza collisioni
+    reward += timestep_reward * no_collision_timesteps
+
     return reward

@@ -56,3 +56,4 @@ plt.ylabel('Waypoint Distance')
 plt.tight_layout()
 plt.savefig('Griglia_Subplot_Metriche_Simulazione_CARLA.png')
 plt.show()
+m

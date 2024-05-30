@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 
 
-def process_img(image, dim_x=256, dim_y=256):
+def process_img(image, dim_x=128, dim_y=128):
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     array = np.reshape(array, (image.height, image.width, 4))
     array = array[:, :, :3]

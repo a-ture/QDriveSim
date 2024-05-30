@@ -9,89 +9,36 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-
-class DuelingConvNetLSTM(nn.Module):
+class ConvNet(nn.Module):
     def __init__(self, in_channels, num_actions_steer, num_actions_brake, num_actions_throttle) -> None:
-        super(DuelingConvNetLSTM, self).__init__()
+        super(ConvNet, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 32, 8, 4)
         self.conv1_bn = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, 4, 2)
+        self.conv2 = nn.Conv2d(32, 64, 4, 3)
         self.conv2_bn = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(64, 128, 3, 2)
-        self.conv3_bn = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(128, 128, 3, 1)
-        self.conv4_bn = nn.BatchNorm2d(128)
-        self.conv5 = nn.Conv2d(128, 128, 3, 1)
-        self.conv5_bn = nn.BatchNorm2d(128)
-
-        # Strati aggiuntivi
-        self.conv6 = nn.Conv2d(128, 256, 3, 1)
-        self.conv6_bn = nn.BatchNorm2d(256)
-        self.conv7 = nn.Conv2d(256, 256, 3, 1)
-        self.conv7_bn = nn.BatchNorm2d(256)
-
-        # Calcola la dimensione dell'output dopo i livelli convoluzionali
-        self.lstm_input_size = self._get_conv_output_size(in_channels)
-
-        self.lstm = nn.LSTM(self.lstm_input_size, 512, batch_first=True)
-
-        self.fc1 = nn.Linear(512, 256)
+        self.conv3 = nn.Conv2d(64, 64, 3, 1)
+        self.conv3_bn = nn.BatchNorm2d(64)
+        self.fc1 = nn.Linear(64 * 8 * 8, 256)
         self.fc1_bn = nn.BatchNorm1d(256)
-
-        self.value_fc = nn.Linear(256, 128)
-        self.value_fc_bn = nn.BatchNorm1d(128)
-        self.value = nn.Linear(128, 1)
-
-        self.adv_fc = nn.Linear(256, 128)
-        self.adv_fc_bn = nn.BatchNorm1d(128)
-        self.adv_steer = nn.Linear(128, num_actions_steer)
-        self.adv_brake = nn.Linear(128, num_actions_brake)
-        self.adv_throttle = nn.Linear(128, num_actions_throttle)
-
-    def _get_conv_output_size(self, in_channels):
-        # Funzione per calcolare la dimensione dell'output dopo i livelli convoluzionali
-        dummy_input = torch.zeros(1, in_channels, 256, 256)
-        x = F.relu(self.conv1_bn(self.conv1(dummy_input)))
-        x = F.relu(self.conv2_bn(self.conv2(x)))
-        x = F.relu(self.conv3_bn(self.conv3(x)))
-        x = F.relu(self.conv4_bn(self.conv4(x)))
-        x = F.relu(self.conv5_bn(self.conv5(x)))
-        x = F.relu(self.conv6_bn(self.conv6(x)))  # Strato aggiuntivo
-        x = F.relu(self.conv7_bn(self.conv7(x)))  # Strato aggiuntivo
-        return int(np.prod(x.size()))
+        self.fc2 = nn.Linear(256, 32)
+        self.fc2_bn = nn.BatchNorm1d(32)
+        self.fc3_steer = nn.Linear(32, num_actions_steer)
+        self.fc3_brake = nn.Linear(32, num_actions_brake)
+        self.fc3_throttle = nn.Linear(32, num_actions_throttle)
 
     def forward(self, x):
-        batch_size = x.size(0)
         x = F.relu(self.conv1_bn(self.conv1(x)))
         x = F.relu(self.conv2_bn(self.conv2(x)))
         x = F.relu(self.conv3_bn(self.conv3(x)))
-        x = F.relu(self.conv4_bn(self.conv4(x)))
-        x = F.relu(self.conv5_bn(self.conv5(x)))
-        x = F.relu(self.conv6_bn(self.conv6(x)))  # Strato aggiuntivo
-        x = F.relu(self.conv7_bn(self.conv7(x)))  # Strato aggiuntivo
-        x = x.view(batch_size, -1)
-        self.lstm.flatten_parameters()
-        x, _ = self.lstm(x.unsqueeze(1))
-        x = F.relu(self.fc1_bn(self.fc1(x[:, -1, :])))
+        x = x.view(-1, 64 * 8 * 8)  # flatten
+        x = F.relu(self.fc1_bn(self.fc1(x)))
+        x = F.relu(self.fc2_bn(self.fc2(x)))
 
-        value = F.relu(self.value_fc_bn(self.value_fc(x)))
-        value = self.value(value)
+        steer_output = self.fc3_steer(x)
+        brake_output = self.fc3_brake(x)
+        throttle_output = self.fc3_throttle(x)
 
-        adv_steer = F.relu(self.adv_fc_bn(self.adv_fc(x)))
-        adv_steer = self.adv_steer(adv_steer)
-
-        adv_brake = F.relu(self.adv_fc_bn(self.adv_fc(x)))
-        adv_brake = self.adv_brake(adv_brake)
-
-        adv_throttle = F.relu(self.adv_fc_bn(self.adv_fc(x)))
-        adv_throttle = self.adv_throttle(adv_throttle)
-
-        q_steer = value + adv_steer - adv_steer.mean(1, keepdim=True)
-        q_brake = value + adv_brake - adv_brake.mean(1, keepdim=True)
-        q_throttle = value + adv_throttle - adv_throttle.mean(1, keepdim=True)
-
-        return q_steer, q_brake, q_throttle
-
+        return steer_output, brake_output, throttle_output
 
 class DQN(object):
     def __init__(
@@ -116,7 +63,7 @@ class DQN(object):
         self.current_eps = None
         self.device = device
 
-        self.Q = DuelingConvNetLSTM(in_channels, num_actions_steer, num_action_brake, num_action_throttle).to(
+        self.Q = ConvNet(in_channels, num_actions_steer, num_action_brake, num_action_throttle).to(
             self.device)
         self.Q_target = copy.deepcopy(self.Q)
         self.Q_optimizer = getattr(torch.optim, optimizer)(self.Q.parameters(), **optimizer_parameters)
