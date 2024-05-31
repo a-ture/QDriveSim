@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 import torch
 
 import time
@@ -12,23 +14,40 @@ from codecarbon import OfflineEmissionsTracker
 from logger import setup_logger, close_loggers, log_params, write_separator
 from utils import create_folders
 
-
 # Funzione principale per eseguire l'addestramento del modello
+import matplotlib.pyplot as plt
+
+import matplotlib.pyplot as plt
+
+import matplotlib.pyplot as plt
+
+
+def plot_rewards(episode_rewards, avg_rewards):
+    plt.figure(figsize=(12, 6))
+    plt.plot(episode_rewards, label='Episode Rewards')
+    plt.plot(avg_rewards, label='Average Rewards')
+    plt.xlabel('Episodes')
+    plt.ylabel('Rewards')
+    plt.title('Episode and Average Rewards Over Time')
+    plt.legend()
+    plt.show()
+
+
 def run(logger):
     try:
         start_time = time.time()  # Registra il tempo di inizio
 
         # Definizione dei parametri del modello
         buffer_size = 1e4  # Dimensione del replay buffer
-        batch_size = 128  # Dimensione del batch per l'addestramento
-        state_dim = (5, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
+        batch_size = 32  # Dimensione del batch per l'addestramento
+        state_dim = (1, 128, 128)  # Dimensione dello stato Da cambiare in base al numero di sensori
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")  # Dispositivo su cui eseguire il modello (GPU se disponibile, altrimenti CPU)
         num_actions_steer = len(action_map_steer)  # Numero di azioni disponibili
         num_actions_brake = len(action_map_brake)  # Numero di azioni disponibili
         num_actions_throttle = len(action_map_throttle)  # Numero di azioni disponibili
 
-        in_channels = 5  # da cambiare in base al numero di sensori e al colore delle img
+        in_channels = 1  # da cambiare in base al numero di sensori e al colore delle img
 
         model_params = {
             'num_actions_steer': num_actions_steer,
@@ -39,11 +58,11 @@ def run(logger):
             'device': device,
             'discount': 0.9,
             'optimizer': "Adam",
-            'optimizer_parameters': {'lr': 0.01},
-            'target_update_frequency': 1e4,
+            'optimizer_parameters': {'lr': 0.005},
+            'target_update_frequency': 5e3,
             'initial_eps': 1,
-            'end_eps': 0.05,
-            'eps_decay_period': 25e4,
+            'end_eps': 0.1,
+            'eps_decay_period': 50e4,
             'eval_eps': 0.001,
         }
 
@@ -65,19 +84,35 @@ def run(logger):
                     end_eps=model_params['end_eps'],
                     eps_decay_period=model_params['eps_decay_period'],
                     eval_eps=model_params['eval_eps'])
+        # Caricamento dei pesi del modello addestrato
+        #model.load('weights/model_ep_950')
 
         # Creazione dell'ambiente di simulazione
         env = SimEnv(visuals=True, **env_params)
 
         # Ciclo di addestramento per un numero di episodi definito
         episodes = 3000
+        episode_rewards = []
+        avg_rewards = []
+        avg_window = 100  # Finestra per la media mobile
 
         for ep in range(episodes):
             # Creazione degli attori nell'ambiente
             env.create_actors()
 
             # Generazione dell'episodio e addestramento del modello
-            env.generate_episode(model, replay_buffer, ep, evaluation=False)
+            episode_reward = env.generate_episode(model, replay_buffer, ep, evaluation=False)
+
+            # Controlla se episode_reward è un valore numerico
+            if episode_reward is not None:
+                episode_rewards.append(episode_reward)
+
+                # Calcola la ricompensa media
+                if len(episode_rewards) >= avg_window:
+                    avg_rewards.append(np.mean(episode_rewards[-avg_window:]))
+                else:
+                    avg_rewards.append(np.mean(episode_rewards))
+
             # Reimpostazione dell'ambiente per il prossimo episodio
             env.reset()
 
@@ -85,44 +120,21 @@ def run(logger):
         total_training_time = end_time - start_time  # Calcola il tempo totale di esecuzione
         logger.info(f"Tempo totale di addestramento: {total_training_time:.2f} secondi")
 
+        # Plot delle ricompense
+        plot_rewards(episode_rewards, avg_rewards)
+
     finally:
         # Chiusura dell'ambiente alla fine dell'esecuzione
         env.quit()
 
 
-# Esecuzione della funzione run() se questo modulo è eseguito come script principale
 if __name__ == "__main__":
     create_folders(['log'])
 
     logger = setup_logger('logger', os.path.join('log', 'logger.log'))
 
-    # tracker = OfflineEmissionsTracker(country_iso_code="ITA")
-    # tracker.start()
-
     try:
         run(logger)
     finally:
-        # tracker.stop()
-        # emissions_csv = pd.read_csv("emissions.csv")
-        #
-        # last_emissions = emissions_csv.tail(1)  # Ottenere l'ultima riga del dataframe
-        # emissions = last_emissions["emissions"].iloc[0] * 1000  # Estrai il valore numerico dall'ultima riga
-        #
-        # energy = last_emissions["energy_consumed"]
-        # cpu = last_emissions["cpu_energy"]
-        # gpu = last_emissions["gpu_energy"]
-        # ram = last_emissions["ram_energy"]
-        #
-        # write_separator(logger)
-        #
-        # # Log delle metriche
-        # logger.info(f"Emissioni: {emissions} g")
-        # logger.info(f"Energia consumata: {energy} kWh")
-        # logger.info(f"Energia CPU: {cpu} J")
-        # logger.info(f"Energia GPU: {gpu} J")
-        # logger.info(f"Energia RAM: {ram} J")
-        #
-        # # Log delle metriche di CodeCarbon
-        # log_codecarbon_metrics(logger, emissions)
         close_loggers([logger])
         del logger

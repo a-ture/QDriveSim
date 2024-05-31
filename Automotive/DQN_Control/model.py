@@ -4,10 +4,6 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
 
 class ConvNet(nn.Module):
     def __init__(self, in_channels, num_actions_steer, num_actions_brake, num_actions_throttle) -> None:
@@ -40,6 +36,7 @@ class ConvNet(nn.Module):
 
         return steer_output, brake_output, throttle_output
 
+
 class DQN(object):
     def __init__(
             self,
@@ -49,17 +46,17 @@ class DQN(object):
             state_dim,
             in_channels,
             device,
-            discount=0.9,
+            discount=0.99,
             optimizer="Adam",
             optimizer_parameters=None,
             target_update_frequency=1e4,
             initial_eps=1,
-            end_eps=0.05,
-            eps_decay_period=25e4,
+            end_eps=0.1,
+            eps_decay_period=50e4,
             eval_eps=0.001
     ) -> None:
         if optimizer_parameters is None:
-            optimizer_parameters = {'lr': 0.01}
+            optimizer_parameters = {'lr': 0.001}
         self.current_eps = None
         self.device = device
 
@@ -75,7 +72,8 @@ class DQN(object):
 
         self.initial_eps = initial_eps
         self.end_eps = end_eps
-        self.slope = (self.end_eps - self.initial_eps) / (eps_decay_period ** 2)
+        self.eps_decay_period = eps_decay_period
+        self.eps_decay = (self.initial_eps - self.end_eps) / self.eps_decay_period
 
         self.state_shape = (-1,) + state_dim
         self.eval_eps = eval_eps
@@ -87,7 +85,7 @@ class DQN(object):
 
     def select_action(self, state, eval=False):
         eps = self.eval_eps if eval \
-            else max(self.slope * self.iterations + self.initial_eps, self.end_eps)
+            else max(self.initial_eps - self.eps_decay * self.iterations, self.end_eps)
         self.current_eps = eps
 
         if np.random.uniform(0, 1) > eps:
@@ -134,13 +132,11 @@ class DQN(object):
         current_Q_brake = current_Q_brake.gather(1, brake).squeeze(1)
         current_Q_throttle = current_Q_throttle.gather(1, throttle).squeeze(1)
 
-        td_error_steer = target_Q_steer - current_Q_steer
-        td_error_brake = target_Q_brake - current_Q_brake
-        td_error_throttle = target_Q_throttle - current_Q_throttle
 
-        Q_loss_steer = td_error_steer.pow(2).mean()
-        Q_loss_brake = td_error_brake.pow(2).mean()
-        Q_loss_throttle = td_error_throttle.pow(2).mean()
+
+        Q_loss_steer = F.smooth_l1_loss(current_Q_steer, target_Q_steer.squeeze())
+        Q_loss_brake = F.smooth_l1_loss(current_Q_brake, target_Q_brake.squeeze())
+        Q_loss_throttle = F.smooth_l1_loss(current_Q_throttle, target_Q_throttle.squeeze())
 
         self.Q_optimizer.zero_grad()
         (Q_loss_steer + Q_loss_brake + Q_loss_throttle).backward()
@@ -150,11 +146,14 @@ class DQN(object):
         self.copy_target_update()
 
     def copy_target_update(self):
-        # Aumenta la frequenza di aggiornamento della rete target
         if self.iterations % (self.target_update_frequency // 2) == 0:
             print('target network updated')
             print('current epsilon', self.current_eps)
             self.Q_target.load_state_dict(self.Q.state_dict())
+        # Aggiungi un aggiornamento soft della rete target
+        tau = 0.005
+        for target_param, param in zip(self.Q_target.parameters(), self.Q.parameters()):
+            target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
     def save(self, filename):
         torch.save(self.Q.state_dict(), filename + "_Q")

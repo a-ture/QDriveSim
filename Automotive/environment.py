@@ -108,11 +108,7 @@ class SimEnv(object):
         # Generazione del mondo dalla mappa OpenDRIVE
         self.world = self.client.generate_opendrive_world(xodr_data)
 
-        # Verifica se il mondo è stato generato correttamente
-        if self.world is None:
-            raise RuntimeError("Errore nel caricamento della mappa.")
-
-        # self.world = self.client.load_world('Example_2.xodr')
+        #self.world = self.client.load_world('Town02_Opt')
         self.world.unload_map_layer(carla.MapLayer.Decals)
         self.world.unload_map_layer(carla.MapLayer.Foliage)
         self.world.unload_map_layer(carla.MapLayer.ParkedVehicles)
@@ -181,31 +177,31 @@ class SimEnv(object):
         self.actor_list.append(self.camera_rgb_vis)
 
         # Aggiungi telecamere laterali
-        self.camera_rgb_left = self.world.spawn_actor(
-            self.blueprint_library.find('sensor.camera.rgb'),
-            carla.Transform(carla.Location(x=1.5, y=-0.5, z=2.4), carla.Rotation(pitch=-15, yaw=-30)),
-            attach_to=self.vehicle)
-        self.actor_list.append(self.camera_rgb_left)
-
-        self.camera_rgb_right = self.world.spawn_actor(
-            self.blueprint_library.find('sensor.camera.rgb'),
-            carla.Transform(carla.Location(x=1.5, y=0.5, z=2.4), carla.Rotation(pitch=-15, yaw=30)),
-            attach_to=self.vehicle)
-        self.actor_list.append(self.camera_rgb_right)
+        # self.camera_rgb_left = self.world.spawn_actor(
+        #     self.blueprint_library.find('sensor.camera.rgb'),
+        #     carla.Transform(carla.Location(x=1.5, y=-0.5, z=2.4), carla.Rotation(pitch=-15, yaw=-30)),
+        #     attach_to=self.vehicle)
+        # self.actor_list.append(self.camera_rgb_left)
+        #
+        # self.camera_rgb_right = self.world.spawn_actor(
+        #     self.blueprint_library.find('sensor.camera.rgb'),
+        #     carla.Transform(carla.Location(x=1.5, y=0.5, z=2.4), carla.Rotation(pitch=-15, yaw=30)),
+        #     attach_to=self.vehicle)
+        # self.actor_list.append(self.camera_rgb_right)
 
         # Sensore di profondità
-        self.camera_depth = self.world.spawn_actor(
-            self.blueprint_library.find('sensor.camera.depth'),
-            carla.Transform(carla.Location(x=0.5, z=2.4), carla.Rotation(pitch=-15)),
-            attach_to=self.vehicle)
-        self.actor_list.append(self.camera_depth)
+        # self.camera_depth = self.world.spawn_actor(
+        #     self.blueprint_library.find('sensor.camera.depth'),
+        #     carla.Transform(carla.Location(x=0.5, z=2.4), carla.Rotation(pitch=-15)),
+        #     attach_to=self.vehicle)
+        # self.actor_list.append(self.camera_depth)
 
-        # Sensore Lidar per rilevare gli ostacoli
-        self.lidar_sensor = self.world.spawn_actor(
-            self.blueprint_library.find('sensor.lidar.ray_cast'),
-            carla.Transform(carla.Location(z=2.4)),  # Posizione in cui viene montato il Lidar
-            attach_to=self.vehicle)
-        self.actor_list.append(self.lidar_sensor)
+        # # Sensore Lidar per rilevare gli ostacoli
+        # self.lidar_sensor = self.world.spawn_actor(
+        #     self.blueprint_library.find('sensor.lidar.ray_cast'),
+        #     carla.Transform(carla.Location(z=2.4)),  # Posizione in cui viene montato il Lidar
+        #     attach_to=self.vehicle)
+        # self.actor_list.append(self.lidar_sensor)
 
         # Sensori per l'invasione di corsia e la collisione
         self.lane_invasion_sensor = self.world.spawn_actor(
@@ -215,11 +211,11 @@ class SimEnv(object):
         self.actor_list.append(self.lane_invasion_sensor)
 
         # Sensori per la segmentazione
-        self.segmentation_sensor = self.world.spawn_actor(
-            self.blueprint_library.find('sensor.camera.semantic_segmentation'),
-            carla.Transform(),
-            attach_to=self.vehicle)
-        self.actor_list.append(self.segmentation_sensor)
+        # self.segmentation_sensor = self.world.spawn_actor(
+        #     self.blueprint_library.find('sensor.camera.semantic_segmentation'),
+        #     carla.Transform(),
+        #     attach_to=self.vehicle)
+        # self.actor_list.append(self.segmentation_sensor)
 
         self.collision_sensor = self.world.spawn_actor(
             self.blueprint_library.find('sensor.other.collision'),
@@ -262,9 +258,7 @@ class SimEnv(object):
 
     def generate_episode(self, model, replay_buffer, ep, evaluation=True):
         start_time = time.time()
-        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis,
-                           self.camera_rgb_right, self.camera_rgb_left, self.camera_depth,
-                           self.segmentation_sensor, self.lane_invasion_sensor, self.collision_sensor,
+        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.lane_invasion_sensor, self.collision_sensor,
                            fps=30) as sync_mode:
             counter = 0
             total_collisions = 0
@@ -281,7 +275,7 @@ class SimEnv(object):
 
             previous_location = self.vehicle.get_location()  # Inizializza la posizione precedente
 
-            snapshot, image_rgb, image_rgb_vis, image_rgb_right, image_rgb_left, camera_depth, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+            snapshot, image_rgb, image_rgb_vis,  lane_invasion, collision = sync_mode.tick(
                 timeout=1.0)
 
             if snapshot is None or image_rgb is None:
@@ -291,13 +285,12 @@ class SimEnv(object):
 
             image_rgb = process_img(image_rgb)
             image_rgb_vis = process_img(image_rgb_vis)
-            image_rgb_right = process_img(image_rgb_right)
-            image_rgb_left = process_img(image_rgb_left)
-            image_depth = process_img(camera_depth)
-            image_segmentation = process_img(segmentation_sensor)
+            # image_rgb_right = process_img(image_rgb_right)
+            # image_rgb_left = process_img(image_rgb_left)
+            # image_depth = process_img(camera_depth)
+            # image_segmentation = process_img(segmentation_sensor)
 
-            next_state = [image_rgb, image_rgb_left, image_rgb_right, image_depth, image_segmentation]
-
+            next_state = [image_rgb]
             while True:
                 if self.visuals:
                     if should_quit():
@@ -348,7 +341,7 @@ class SimEnv(object):
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
-                snapshot, image_rgb, image_rgb_vis, image_rgb_right, image_rgb_left, camera_depth, segmentation_sensor, lane_invasion, collision = sync_mode.tick(
+                snapshot, image_rgb, image_rgb_vis, lane_invasion, collision = sync_mode.tick(
                     timeout=1.0)
 
                 avg_speed = speed_sum / counter if counter > 0 else 0
@@ -367,7 +360,7 @@ class SimEnv(object):
                 if lane_invasion:
                     total_lane_invasions += 1
 
-                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None is None or segmentation_sensor is None or camera_depth is None:
+                if snapshot is None or image_rgb is None or image_rgb_vis is None or collision is None is None:
                     print("Process ended here")
                     break
 
@@ -377,13 +370,12 @@ class SimEnv(object):
 
                 image_rgb = process_img(image_rgb)
 
-                image_rgb_right = process_img(image_rgb_right)
-                image_rgb_left = process_img(image_rgb_left)
-                image_depth = process_img(camera_depth)
-                image_segmentation = process_img(segmentation_sensor)
+                # image_rgb_right = process_img(image_rgb_right)
+                # image_rgb_left = process_img(image_rgb_left)
+                # image_depth = process_img(camera_depth)
+                # image_segmentation = process_img(segmentation_sensor)
 
-                next_state = [image_rgb, image_rgb_left, image_rgb_right, image_depth,
-                              image_segmentation]
+                next_state = [image_rgb]
 
                 replay_buffer.add(state, steer, brake, throttle, next_state, reward, done)
 
@@ -420,9 +412,8 @@ class SimEnv(object):
                                                 life_time=0.1)
 
                 if collision == 1 or counter >= self.max_iter:
-                    print("Episode {} processed".format(ep), counter, "total reward: ", reward)
                     duration = time.time() - start_time
-
+                    print("Episode {} processed".format(ep), counter, "total reward: ", reward, "duration:", duration)
                     self.calculate_metrics(ep, reward, vehicle_location, waypoint, duration, counter,
                                            total_collisions, total_lane_invasions, avg_speed, waypoint_similarity,
                                            total_distance, max_speed, hard_brakes)
@@ -526,7 +517,6 @@ def reward_value(cos_yaw_diff, dist, collision, lane_invasion, speed, waypoint_s
             (lambda_2 * dist) -
             (lambda_3 * collision) -
             (lambda_4 * speed_diff) -
-            (lambda_5 * lane_invasion * 2) -
             (yaw_penalty * (1 - cos_yaw_diff)) -
             (lane_penalty * dist * 2) +
             (lambda_6 * waypoint_similarity)
