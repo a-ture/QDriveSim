@@ -132,8 +132,6 @@ class DQN(object):
         current_Q_brake = current_Q_brake.gather(1, brake).squeeze(1)
         current_Q_throttle = current_Q_throttle.gather(1, throttle).squeeze(1)
 
-
-
         Q_loss_steer = F.smooth_l1_loss(current_Q_steer, target_Q_steer.squeeze())
         Q_loss_brake = F.smooth_l1_loss(current_Q_brake, target_Q_brake.squeeze())
         Q_loss_throttle = F.smooth_l1_loss(current_Q_throttle, target_Q_throttle.squeeze())
