@@ -46,17 +46,17 @@ class DQN(object):
             state_dim,
             in_channels,
             device,
-            discount=0.99,
+            discount=0.9,
             optimizer="Adam",
             optimizer_parameters=None,
             target_update_frequency=1e4,
             initial_eps=1,
-            end_eps=0.1,
-            eps_decay_period=50e4,
+            end_eps=0.05,
+            eps_decay_period=25e4,
             eval_eps=0.001
     ) -> None:
         if optimizer_parameters is None:
-            optimizer_parameters = {'lr': 0.001}
+            optimizer_parameters = {'lr': 0.01}
         self.current_eps = None
         self.device = device
 
@@ -94,7 +94,7 @@ class DQN(object):
                 state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
                 steer, brake, throttle = self.Q(state_tensor)
                 steer_action = int(steer.argmax(1))
-                brake_action = int(brake.argmin(1))
+                brake_action = int(brake.argmax(1))
                 throttle_action = int(throttle.argmax(1))
         else:
             steer_action = np.random.randint(self.num_actions_steer)
@@ -104,10 +104,6 @@ class DQN(object):
 
     def train(self, replay_buffer):
         self.Q.train()
-
-        self.lr = max(self.lr - 0.00001, 0.00001)
-        for param_group in self.Q_optimizer.param_groups:
-            param_group['lr'] = self.lr
 
         state, steer, brake, throttle, next_state, reward, done = replay_buffer.sample()
 

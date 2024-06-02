@@ -75,17 +75,9 @@ def run(logger):
         replay_buffer = ReplayBuffer(state_dim, batch_size, buffer_size, device)
 
         # Creazione del modello DQN
-        model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device,
-                    discount=model_params['discount'],
-                    optimizer=model_params['optimizer'],
-                    optimizer_parameters=model_params['optimizer_parameters'],
-                    target_update_frequency=model_params['target_update_frequency'],
-                    initial_eps=model_params['initial_eps'],
-                    end_eps=model_params['end_eps'],
-                    eps_decay_period=model_params['eps_decay_period'],
-                    eval_eps=model_params['eval_eps'])
+        model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device)
         # Caricamento dei pesi del modello addestrato
-        #model.load('weights/model_ep_950')
+        # model.load('weights/model_ep_950')
 
         # Creazione dell'ambiente di simulazione
         env = SimEnv(visuals=True, **env_params)

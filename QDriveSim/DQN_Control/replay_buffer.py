@@ -20,7 +20,7 @@ class ReplayBuffer(object):
         self.reward = np.zeros((self.max_size, 1))
         self.done = np.zeros((self.max_size, 1))
 
-    def add(self, state, steer,  throttle, next_state, reward, done):
+    def add(self, state, steer, throttle, next_state, reward, done):
         self.state[self.ptr] = state
         self.steer[self.ptr] = steer
 
@@ -42,6 +42,4 @@ class ReplayBuffer(object):
         rewards = torch.FloatTensor(self.reward[ind]).to(self.device)
         dones = torch.FloatTensor(self.done[ind]).to(self.device)
 
-        return states, steers,  throttles, next_states, rewards, dones
-
-
+        return states, steers, throttles, next_states, rewards, dones

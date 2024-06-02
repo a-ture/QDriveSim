@@ -59,10 +59,10 @@ def main():
 
     # Aggiunge un ego vehicle
     ego_bp = blueprint_library.find('vehicle.tesla.model3')
-    #hero indica che la macchina che controlliamo noi
+    # hero indica che la macchina che controlliamo noi
     ego_bp.set_attribute('role_name', 'hero')
 
-    ego_vehicle = world.try_spawn_actor(ego_bp,random.choice(spawn_points))
+    ego_vehicle = world.try_spawn_actor(ego_bp, random.choice(spawn_points))
     if not ego_vehicle:
         print("Failed to spawn ego vehicle.")
         return

@@ -4,8 +4,8 @@ img = cv2.imread('../output/000970.png')
 print(img.shape)
 
 scale_percent = 25
-width = int(img.shape[1] * scale_percent/100)
-height = int(img.shape[0] * scale_percent/100)
+width = int(img.shape[1] * scale_percent / 100)
+height = int(img.shape[0] * scale_percent / 100)
 
 dim = (128, 128)
 

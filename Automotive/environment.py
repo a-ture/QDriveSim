@@ -108,7 +108,7 @@ class SimEnv(object):
         # Generazione del mondo dalla mappa OpenDRIVE
         self.world = self.client.generate_opendrive_world(xodr_data)
 
-        #self.world = self.client.load_world('Town02_Opt')
+        # self.world = self.client.load_world('Town02_Opt')
         self.world.unload_map_layer(carla.MapLayer.Decals)
         self.world.unload_map_layer(carla.MapLayer.Foliage)
         self.world.unload_map_layer(carla.MapLayer.ParkedVehicles)
@@ -258,7 +258,8 @@ class SimEnv(object):
 
     def generate_episode(self, model, replay_buffer, ep, evaluation=True):
         start_time = time.time()
-        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.lane_invasion_sensor, self.collision_sensor,
+        with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.lane_invasion_sensor,
+                           self.collision_sensor,
                            fps=30) as sync_mode:
             counter = 0
             total_collisions = 0
@@ -275,7 +276,7 @@ class SimEnv(object):
 
             previous_location = self.vehicle.get_location()  # Inizializza la posizione precedente
 
-            snapshot, image_rgb, image_rgb_vis,  lane_invasion, collision = sync_mode.tick(
+            snapshot, image_rgb, image_rgb_vis, lane_invasion, collision = sync_mode.tick(
                 timeout=1.0)
 
             if snapshot is None or image_rgb is None:

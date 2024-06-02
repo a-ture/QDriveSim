@@ -5,7 +5,8 @@ import time
 
 import pandas as pd
 
-from config import action_map_throttle, action_map_brake, action_map_steer
+from config import action_map_throttle, action_map_steer
+from controllers import PIDLongitudinalController
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -26,7 +27,7 @@ random.seed(78)
 
 
 def calculate_metrics(episode, total_reward, vehicle_location, waypoint, duration, timesteps,
-                      collisions, lane_invasions, avg_speed, waypoint_distance, total_distance, max_speed):
+                      collisions, lane_invasions, avg_speed, total_distance, max_speed, throttle_diff):
     metrics_data = {
         'episode': [episode],
         'reward': [total_reward],
@@ -37,9 +38,9 @@ def calculate_metrics(episode, total_reward, vehicle_location, waypoint, duratio
         'collisions': [collisions],
         'lane_invasions': [lane_invasions],
         'avg_speed': [avg_speed],
-        'waypoint_similarity': waypoint_distance,
         'total_distance': [total_distance],
-        'max_speed': [max_speed]
+        'max_speed': [max_speed],
+        'throttle_diff': [throttle_diff]
     }
 
     metrics_df = pd.DataFrame(metrics_data)
@@ -62,6 +63,8 @@ class SimEnv(object):
                  start_ep=0,
                  max_dist_from_waypoint=20
                  ) -> None:
+        self.vehicle = None
+        self.speed_controller = None
         self.lane_invasion_sensor = None
         self.camera_rgb_vis = None
         self.camera_rgb = None
@@ -151,10 +154,13 @@ class SimEnv(object):
             attach_to=self.vehicle
         )
         self.actor_list.append(self.collision_sensor)
+        self.speed_controller = PIDLongitudinalController(self.vehicle)
 
     def reset(self):
         for actor in self.actor_list:
-            actor.destroy()
+            if actor.is_alive:
+                actor.destroy()
+        self.actor_list = []
 
     def generate_episode(self, model, replay_buffer, ep, eval=True):
         with CarlaSyncMode(self.world, self.camera_rgb, self.camera_rgb_vis, self.lane_invasion_sensor,
@@ -166,9 +172,7 @@ class SimEnv(object):
             speed_sum = 0
             total_distance = 0
             max_speed = 0
-            no_collision_timesteps = 0
-            waypoints = [self.world.get_map().get_waypoint(self.vehicle.get_location(), project_to_road=True,
-                                                           lane_type=carla.LaneType.Driving)]
+
             previous_location = self.vehicle.get_location()  # Inizializza la posizione precedente
             start_time = time.time()
 
@@ -183,6 +187,7 @@ class SimEnv(object):
 
             image = process_img(image_rgb)
             next_state = image
+            # Inizializzazione del PID Controller
 
             while True:
                 if self.visuals:
@@ -214,25 +219,35 @@ class SimEnv(object):
                 self.global_t += 1
 
                 action = model.select_action(state, eval=eval)
-                steer,  throttle = action
+                steer, throttle = action
                 if action is not None:
                     steer = action_map_steer[steer]
                     throttle = action_map_throttle[throttle]
 
-                control = self.vehicle.get_control()
-                control.throttle = throttle
-                control.steer = steer
-                self.vehicle.apply_control(control)
+                # control = self.vehicle.get_control()
+                # control.throttle = throttle
+                # control.steer = steer
+                # self.vehicle.apply_control(control)
 
                 fps = round(1.0 / snapshot.timestamp.delta_seconds)
 
                 snapshot, image_rgb, image_rgb_vis, lane_invasion, collision = sync_mode.tick(
                     timeout=1.0)
 
-                cos_yaw_diff, dist, collision, waypoint_similarity = get_reward_comp(self.vehicle, waypoint, collision,
-                                                                                     waypoints)
-                reward = reward_value(cos_yaw_diff, dist, collision, speed)
+                cos_yaw_diff, dist, collision = get_reward_comp(self.vehicle, waypoint, collision)
+                reward = reward_value(cos_yaw_diff, dist, collision)
 
+                # Usa il PID controller per affinare il throttle
+                pid_control = self.speed_controller.run_step(self.target_speed)
+                pid_control.steer = steer
+                throttle_diff = abs(pid_control.throttle - throttle)
+                if throttle_diff <= 0.1:
+                    pid_control.throttle = throttle
+                else:
+                    reward -= 0.5 * (pid_control.throttle - throttle)
+
+                # Applica il controllo affinato al veicolo
+                self.vehicle.apply_control(pid_control)
                 if snapshot is None or image_rgb is None:
                     print("Process ended here")
                     break
@@ -245,7 +260,7 @@ class SimEnv(object):
 
                 next_state = [image]
 
-                replay_buffer.add(state, steer,  throttle, next_state, reward, done)
+                replay_buffer.add(state, steer, throttle, next_state, reward, done)
 
                 if not eval:
                     if ep > self.start_train and (self.global_t % self.train_freq) == 0:
@@ -271,23 +286,16 @@ class SimEnv(object):
                         (8, 100))
                     pygame.display.flip()
 
-                if collision:
-                    total_collisions += 1
-                    no_collision_timesteps = 0  # Resetta il contatore se c'è stata una collisione
-                else:
-                    no_collision_timesteps += 1  # Incrementa il contatore se non c'è stata collisione
-
+                avg_speed = speed_sum / counter if counter > 0 else 0
                 if lane_invasion:
                     total_lane_invasions += 1
-
-                avg_speed = speed_sum / counter if counter > 0 else 0
 
                 if collision == 1 or counter >= self.max_iter or dist > self.max_dist_from_waypoint:
                     duration = time.time() - start_time
                     print("Episode {} processed".format(ep), counter, "reward", reward, "duration", duration)
                     calculate_metrics(ep, reward, vehicle_location, waypoint, duration, counter,
-                                      total_collisions, total_lane_invasions, avg_speed, waypoint_similarity,
-                                      total_distance, max_speed, )
+                                      collision, total_lane_invasions, avg_speed,
+                                      total_distance, max_speed, throttle_diff)
                     break
 
             if ep % self.save_freq == 0 and ep > 0:
@@ -329,7 +337,7 @@ def calculate_waypoint_similarity(vehicle, waypoints):
 
 
 # Calcola i componenti della ricompensa
-def get_reward_comp(vehicle, waypoint, collision, waypoints):
+def get_reward_comp(vehicle, waypoint, collision):
     vehicle_location = vehicle.get_location()
     x_wp = waypoint.transform.location.x
     y_wp = waypoint.transform.location.y
@@ -348,12 +356,9 @@ def get_reward_comp(vehicle, waypoint, collision, waypoints):
 
     collision = 0 if collision is None else 1
 
-    # Calcola la similarità con i waypoint
-    waypoint_similarity = calculate_waypoint_similarity(vehicle, waypoints)
-
-    return cos_yaw_diff, dist, collision, waypoint_similarity
+    return cos_yaw_diff, dist, collision
 
 
-def reward_value(cos_yaw_diff, dist, collision, speed, lambda_1=1, lambda_2=1, lambda_3=5, lambda_4=2, target_speed=5):
-    reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision) - lambda_4 * abs(speed - target_speed)
+def reward_value(cos_yaw_diff, dist, collision, lambda_1=1, lambda_2=1, lambda_3=5):
+    reward = (lambda_1 * cos_yaw_diff) - (lambda_2 * dist) - (lambda_3 * collision)
     return reward
