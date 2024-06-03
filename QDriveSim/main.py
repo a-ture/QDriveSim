@@ -25,7 +25,7 @@ def run():
         model = DQN(num_actions_steer, num_actions_throttle, state_dim, in_channels, device)
 
         # this only works if you have a model in your weights folder. Replace this by that file
-        model.load('weights/model_ep_1650')
+        model.load('weights/model_ep_1400')
 
         # set to True if you want to run with pygame
         env = SimEnv(visuals=True, **env_params)

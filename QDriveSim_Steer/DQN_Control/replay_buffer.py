@@ -31,36 +31,9 @@ class ReplayBuffer(object):
     def sample(self):
         ind = np.random.randint(0, self.crt_size, size=self.batch_size)
         return (
-            torch.FloatTensor(self.state[ind]).unsqueeze(1).to(self.device),
+            torch.FloatTensor(self.state[ind]).to(self.device),
             torch.LongTensor(self.action[ind]).to(self.device),
-            torch.FloatTensor(self.next_state[ind]).unsqueeze(1).to(self.device),
+            torch.FloatTensor(self.next_state[ind]).to(self.device),
             torch.FloatTensor(self.reward[ind]).to(self.device),
             torch.FloatTensor(self.done[ind]).to(self.device)
         )
-
-def test_buffer():
-    img0 = np.zeros((5, 5))
-    img1 = img0 + 1
-    img2 = img0 + 2
-    img3 = img0 + 3
-
-    action = 1
-    reward = 10
-    done = 0
-
-    device = "cpu"
-
-    buffer = ReplayBuffer((5, 5), 2, 10, device)
-    buffer.add(img0, action, img1, reward, done)
-    buffer.add(img1, action, img2, reward, done)
-    buffer.add(img2, action, img3, reward, done + 1)
-
-    sample = buffer.sample()[0]
-    print(sample.shape)
-
-    norm = transforms.Normalize((0.5, 0.5), (0.5, 0.5))
-    print(norm(sample).shape)
-
-    
-
-# test_buffer()

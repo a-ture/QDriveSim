@@ -42,13 +42,15 @@ class DQN(object):
             device,
             discount=0.9,
             optimizer="Adam",
-            optimizer_parameters={'lr': 0.01},
+            optimizer_parameters=None,
             target_update_frequency=1e4,
             initial_eps=1,
             end_eps=0.05,
             eps_decay_period=25e4,
             eval_eps=0.001
     ) -> None:
+        if optimizer_parameters is None:
+            optimizer_parameters = {'lr': 0.01}
         self.current_eps = None
         self.device = device
 
@@ -77,13 +79,11 @@ class DQN(object):
             else max(self.slope * self.iterations + self.initial_eps, self.end_eps)
         self.current_eps = eps
 
-        # Select action according to policy with probability (1-eps)
-        # otherwise, select random action
         if np.random.uniform(0, 1) > eps:
             self.Q.eval()
             with torch.no_grad():
                 # without batch norm, remove the unsqueeze
-                state = torch.FloatTensor(state).reshape(self.state_shape).unsqueeze(0).to(self.device)
+                state = torch.FloatTensor(state).reshape(self.state_shape).to(self.device)
                 return int(self.Q(state).argmax(1))
         else:
             return np.random.randint(self.num_actions)
@@ -97,19 +97,13 @@ class DQN(object):
         with torch.no_grad():
             target_Q = reward + (1 - done) * self.discount * self.Q_target(next_state).max(1, keepdim=True)[0]
 
-        # Get current Q estimate
-        # torch gather just selects action values from Q(state) using the action tensor as an index
         current_Q = self.Q(state).gather(1, action)
-
-        # Compute Q loss
         Q_loss = F.smooth_l1_loss(current_Q, target_Q)
 
-        # Optimize the Q
         self.Q_optimizer.zero_grad()
         Q_loss.backward()
         self.Q_optimizer.step()
 
-        # Update target network by full copy every X iterations.
         self.iterations += 1
         self.copy_target_update()
 

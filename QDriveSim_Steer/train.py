@@ -18,11 +18,11 @@ def run(logger):
     try:
         buffer_size = 1e4
         batch_size = 32
-        state_dim = (128, 128)
+        state_dim = (5, 128, 128)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         num_actions = len(action_map)
-        in_channels = 1
-        episodes = 1100
+        in_channels = 5
+        episodes = 10000
         model_params = {
             'num_actions_steer': num_actions,
             'state_dim': state_dim,
@@ -50,11 +50,9 @@ def run(logger):
 if __name__ == "__main__":
     start_time = time.time()  # Registra il tempo di inizio
     create_folders(['log'])
-
     logger = setup_logger('logger', os.path.join('log', 'logger.log'))
     tracker = OfflineEmissionsTracker(country_iso_code="ITA")
     tracker.start()
-
     try:
         run(logger)
     finally:
@@ -79,5 +77,9 @@ if __name__ == "__main__":
         total_training_time = end_time - start_time  # Calcola il tempo totale di esecuzione
         logger.info(f"Tempo totale di addestramento: {total_training_time:.2f} secondi")
 
+        end_time = time.time()  # Registra il tempo di fine
+        total_training_time = end_time - start_time  # Calcola il tempo totale di esecuzione
+        logger.info(f"Tempo totale di addestramento: {total_training_time:.2f} secondi")
         close_loggers([logger])
         del logger
+
