@@ -1,7 +1,7 @@
 import os
 
 from DQN_Control.replay_buffer import ReplayBuffer
-from DQN_Control.model import DQN
+from DQN_Control.model_binary import DQN
 
 from config import action_map, env_params
 from utils import *

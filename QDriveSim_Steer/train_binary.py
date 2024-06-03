@@ -1,0 +1,85 @@
+import time
+import pandas as pd
+import torch
+from codecarbon import OfflineEmissionsTracker
+
+from DQN_Control.model_binary import DQN
+from DQN_Control.replay_buffer import ReplayBuffer
+from config import action_map, env_params
+from logger import setup_logger, close_loggers, log_params, write_separator
+from utils import *
+from environment import SimEnv
+
+
+def run(logger):
+    try:
+        buffer_size = 1e4
+        batch_size = 32
+        state_dim = (5, 128, 128)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        num_actions = len(action_map)
+        in_channels = 5
+        episodes = 1050
+        model_params = {
+            'num_actions_steer': num_actions,
+            'state_dim': state_dim,
+            'in_channels': in_channels,
+        }
+
+        # Log dei parametri dell'ambiente e del modello
+        log_params(logger, env_params, title="Ambiente - Parametri")
+        write_separator(logger)
+        log_params(logger, model_params, title="Modello - Parametri")
+        replay_buffer = ReplayBuffer(state_dim, batch_size, buffer_size, device)
+        model = DQN(num_actions, state_dim, in_channels, device)
+
+        env = SimEnv(visuals=True, **env_params)
+        with torch.profiler.profile(
+                activities=[
+                    torch.profiler.ProfilerActivity.CPU,
+                    torch.profiler.ProfilerActivity.CUDA,
+                ],
+                schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
+                on_trace_ready=torch.profiler.tensorboard_trace_handler('./log')
+        ) as p:
+            for ep in range(episodes):
+                env.create_actors()
+                env.generate_episode(model, replay_buffer, ep, action_map, eval=False)
+                env.reset()
+                p.step()
+    finally:
+        env.quit()
+
+
+if __name__ == "__main__":
+    start_time = time.time()  # Registra il tempo di inizio
+    create_folders(['log'])
+    logger = setup_logger('logger', os.path.join('log', 'logger.log'))
+    tracker = OfflineEmissionsTracker(country_iso_code="ITA")
+    tracker.start()
+    try:
+        run(logger)
+    finally:
+        tracker.stop()
+        emissions_csv = pd.read_csv("emissions.csv")
+
+        last_emissions = emissions_csv.tail(1)  # Ottenere l'ultima riga del dataframe
+        emissions = last_emissions["emissions"].iloc[0] * 1000  # Estrai il valore numerico dall'ultima riga
+
+        energy = last_emissions["energy_consumed"]
+        cpu = last_emissions["cpu_energy"]
+        gpu = last_emissions["gpu_energy"]
+        ram = last_emissions["ram_energy"]
+        # Log delle metriche
+        logger.info(f"Emissioni: {emissions} g")
+        logger.info(f"Energia consumata: {energy} kWh")
+        logger.info(f"Energia CPU: {cpu} J")
+        logger.info(f"Energia GPU: {gpu} J")
+        logger.info(f"Energia RAM: {ram} J")
+
+        end_time = time.time()  # Registra il tempo di fine
+        total_training_time = end_time - start_time  # Calcola il tempo totale di esecuzione
+        logger.info(f"Tempo totale di addestramento: {total_training_time:.2f} secondi")
+
+        close_loggers([logger])
+        del logger
