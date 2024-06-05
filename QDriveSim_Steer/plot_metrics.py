@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Leggere il file CSV
-file_path = 'episode_metrics_trimmed.csv'
+file_path = 'episode_metrics_traning_1camera.csv'
 data = pd.read_csv(file_path)
 
 # Controllare se la colonna 'duration' esiste
@@ -12,5 +12,5 @@ if 'duration' in data.columns:
 else:
     print("La colonna 'duration' non esiste nel file CSV.")
 
-import pandas as pd
+
 

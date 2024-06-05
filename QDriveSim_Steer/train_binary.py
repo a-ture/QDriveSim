@@ -34,19 +34,12 @@ def run(logger):
         model = DQN(num_actions, state_dim, in_channels, device)
 
         env = SimEnv(visuals=True, **env_params)
-        with torch.profiler.profile(
-                activities=[
-                    torch.profiler.ProfilerActivity.CPU,
-                    torch.profiler.ProfilerActivity.CUDA,
-                ],
-                schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
-                on_trace_ready=torch.profiler.tensorboard_trace_handler('./log')
-        ) as p:
-            for ep in range(episodes):
+
+        for ep in range(episodes):
                 env.create_actors()
                 env.generate_episode(model, replay_buffer, ep, action_map, eval=False)
                 env.reset()
-                p.step()
+
     finally:
         env.quit()
 

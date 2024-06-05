@@ -4,7 +4,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import torch.nn.functional as F
+
+class BReLU(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input):
+        ctx.save_for_backward(input)
+        return (input > 0).float()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        input, = ctx.saved_tensors
+        grad_input = grad_output.clone()
+        grad_input[input <= 0] = 0
+        return grad_input
+
+
+# Helper function to apply BReLU
+def binary_relu(input):
+    return BReLU.apply(input)
 
 
 def binarize(tensor):
@@ -43,11 +60,11 @@ class BinaryConvNet(nn.Module):
         self.fc3 = nn.Linear(32, num_actions)
 
     def forward(self, x):
-        x = F.relu(self.conv1_bn(self.conv1(x)))
-        x = F.relu(self.conv2_bn(self.conv2(x)))
-        x = F.relu(self.conv3_bn(self.conv3(x)))
-        x = F.relu(self.fc1_bn(self.fc1(x.reshape(-1, 64 * 8 * 8))))
-        x = F.relu(self.fc2_bn(self.fc2(x)))
+        x = binary_relu(self.conv1_bn(self.conv1(x)))
+        x = binary_relu(self.conv2_bn(self.conv2(x)))
+        x = binary_relu(self.conv3_bn(self.conv3(x)))
+        x = binary_relu(self.fc1_bn(self.fc1(x.reshape(-1, 64 * 8 * 8))))
+        x = binary_relu(self.fc2_bn(self.fc2(x)))
         x = self.fc3(x)
         return x
 
@@ -89,6 +106,7 @@ class DQN(object):
         self.num_actions = num_actions
 
         self.iterations = 0
+        self.loss_fn = nn.BCELoss()
 
     def select_action(self, state, eval=False):
         eps = self.eval_eps if eval else max(self.slope * self.iterations + self.initial_eps, self.end_eps)
@@ -108,9 +126,21 @@ class DQN(object):
 
         with torch.no_grad():
             target_Q = reward + (1 - done) * self.discount * self.Q_target(next_state).max(1, keepdim=True)[0]
+            target_Q = target_Q.sign()  # Binarizza gli obiettivi
 
         current_Q = self.Q(state).gather(1, action)
-        Q_loss = F.smooth_l1_loss(current_Q, target_Q)
+        current_Q = current_Q.sign()  # Binarizza gli output
+
+        target_Q = target_Q.float()
+        current_Q = current_Q.float()
+
+        # Apply sigmoid to the outputs
+        current_Q = torch.sigmoid(current_Q)
+
+        # Convert to a binary classification problem
+        target_Q_binary = (target_Q + 1) / 2  # Convert from {-1, 0, 1} to {0, 0.5, 1}
+
+        Q_loss = self.loss_fn(current_Q, target_Q_binary)
 
         self.Q_optimizer.zero_grad()
         Q_loss.backward()
