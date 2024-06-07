@@ -106,7 +106,6 @@ class DQN(object):
         self.num_actions = num_actions
 
         self.iterations = 0
-        self.loss_fn = nn.BCELoss()
 
     def select_action(self, state, eval=False):
         eps = self.eval_eps if eval else max(self.slope * self.iterations + self.initial_eps, self.end_eps)
@@ -126,21 +125,9 @@ class DQN(object):
 
         with torch.no_grad():
             target_Q = reward + (1 - done) * self.discount * self.Q_target(next_state).max(1, keepdim=True)[0]
-            target_Q = target_Q.sign()  # Binarizza gli obiettivi
 
         current_Q = self.Q(state).gather(1, action)
-        current_Q = current_Q.sign()  # Binarizza gli output
-
-        target_Q = target_Q.float()
-        current_Q = current_Q.float()
-
-        # Apply sigmoid to the outputs
-        current_Q = torch.sigmoid(current_Q)
-
-        # Convert to a binary classification problem
-        target_Q_binary = (target_Q + 1) / 2  # Convert from {-1, 0, 1} to {0, 0.5, 1}
-
-        Q_loss = self.loss_fn(current_Q, target_Q_binary)
+        Q_loss = F.smooth_l1_loss(current_Q, target_Q)
 
         self.Q_optimizer.zero_grad()
         Q_loss.backward()

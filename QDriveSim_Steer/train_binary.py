@@ -19,7 +19,7 @@ def run(logger):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         num_actions = len(action_map)
         in_channels = 5
-        episodes = 1050
+        episodes = 1001
         model_params = {
             'num_actions_steer': num_actions,
             'state_dim': state_dim,

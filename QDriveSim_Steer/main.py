@@ -4,15 +4,13 @@ import torch
 
 from DQN_Control import model_binary
 from DQN_Control.replay_buffer import ReplayBuffer
-from DQN_Control.model import DQN
 
 from config import action_map, env_params
 from utils import *
 from environment import SimEnv
 
 
-
-#rete non binaria 5sensori
+# rete non binaria 5sensori
 def run():
     try:
         buffer_size = 1e4
@@ -41,7 +39,8 @@ def run():
         env.reset()
         env.quit()
 
-#rete binaria
+
+# rete binaria
 def run_binary():
     try:
         buffer_size = 1e4
@@ -57,7 +56,7 @@ def run_binary():
         model = model_binary.DQN(num_actions, state_dim, in_channels, device)
 
         # this only works if you have a model in your weights folder. Replace this by that file
-        model.load('weights_primaprovabinario/model_ep_1000')
+        model.load('weights/model_ep_1000')
 
         # set to True if you want to run with pygame
         env = SimEnv(visuals=True, **env_params)
@@ -68,7 +67,6 @@ def run_binary():
             env.reset()
     finally:
         env.reset()
-
 
 
 if __name__ == "__main__":
