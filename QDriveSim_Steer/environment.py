@@ -86,7 +86,7 @@ class SimEnv(object):
 
         # Generazione del mondo dalla mappa OpenDRIVE
         self.world = self.client.generate_opendrive_world(xodr_data)
-        # self.world = self.client.load_world('Town01')
+        self.world = self.client.load_world('Town03')
         self.world.unload_map_layer(carla.MapLayer.Decals)
         self.world.unload_map_layer(carla.MapLayer.Foliage)
         self.world.unload_map_layer(carla.MapLayer.ParkedVehicles)

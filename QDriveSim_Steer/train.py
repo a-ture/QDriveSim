@@ -12,9 +12,7 @@ from logger import setup_logger, close_loggers, log_params, write_separator
 from utils import *
 from environment import SimEnv
 
-
 def run(logger):
-
     try:
         buffer_size = 1e4
         batch_size = 32
@@ -22,7 +20,7 @@ def run(logger):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         num_actions = len(action_map)
         in_channels = 5
-        episodes = 10000
+        episodes = 1001
         model_params = {
             'num_actions_steer': num_actions,
             'state_dim': state_dim,
@@ -42,8 +40,8 @@ def run(logger):
             env.create_actors()
             env.generate_episode(model, replay_buffer, ep, action_map, eval=False)
             env.reset()
-    finally:
 
+    finally:
         env.quit()
 
 
@@ -82,4 +80,3 @@ if __name__ == "__main__":
         logger.info(f"Tempo totale di addestramento: {total_training_time:.2f} secondi")
         close_loggers([logger])
         del logger
-

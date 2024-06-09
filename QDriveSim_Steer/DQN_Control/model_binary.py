@@ -2,26 +2,9 @@ import copy
 import numpy as np
 import torch
 import torch.nn as nn
+
+
 import torch.nn.functional as F
-
-
-class BReLU(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, input):
-        ctx.save_for_backward(input)
-        return (input > 0).float()
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        input, = ctx.saved_tensors
-        grad_input = grad_output.clone()
-        grad_input[input <= 0] = 0
-        return grad_input
-
-
-# Helper function to apply BReLU
-def binary_relu(input):
-    return BReLU.apply(input)
 
 
 def binarize(tensor):
@@ -60,11 +43,11 @@ class BinaryConvNet(nn.Module):
         self.fc3 = nn.Linear(32, num_actions)
 
     def forward(self, x):
-        x = binary_relu(self.conv1_bn(self.conv1(x)))
-        x = binary_relu(self.conv2_bn(self.conv2(x)))
-        x = binary_relu(self.conv3_bn(self.conv3(x)))
-        x = binary_relu(self.fc1_bn(self.fc1(x.reshape(-1, 64 * 8 * 8))))
-        x = binary_relu(self.fc2_bn(self.fc2(x)))
+        x = F.relu(self.conv1_bn(self.conv1(x)))
+        x = F.relu(self.conv2_bn(self.conv2(x)))
+        x = F.relu(self.conv3_bn(self.conv3(x)))
+        x = F.relu(self.fc1_bn(self.fc1(x.reshape(-1, 64 * 8 * 8))))
+        x = F.relu(self.fc2_bn(self.fc2(x)))
         x = self.fc3(x)
         return x
 

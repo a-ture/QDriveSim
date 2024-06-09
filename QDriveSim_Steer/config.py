@@ -5,7 +5,7 @@ action_map = {i: x for i, x in enumerate(action_values)}
 
 env_params = {
     'target_speed': 20,
-    'max_iter': 4000,
+    'max_iter': 6000,
     'start_buffer': 10,
     'train_freq': 1,
     'save_freq': 100,

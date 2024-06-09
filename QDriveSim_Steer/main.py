@@ -3,6 +3,7 @@ import os
 import torch
 
 from DQN_Control import model_binary
+from DQN_Control.model import DQN
 from DQN_Control.replay_buffer import ReplayBuffer
 
 from config import action_map, env_params
@@ -70,4 +71,4 @@ def run_binary():
 
 
 if __name__ == "__main__":
-    run_binary()
+    run()

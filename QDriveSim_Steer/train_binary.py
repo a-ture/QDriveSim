@@ -36,9 +36,9 @@ def run(logger):
         env = SimEnv(visuals=True, **env_params)
 
         for ep in range(episodes):
-                env.create_actors()
-                env.generate_episode(model, replay_buffer, ep, action_map, eval=False)
-                env.reset()
+            env.create_actors()
+            env.generate_episode(model, replay_buffer, ep, action_map, eval=False)
+            env.reset()
 
     finally:
         env.quit()
@@ -52,6 +52,7 @@ if __name__ == "__main__":
     tracker.start()
     try:
         run(logger)
+        tracker.stop()
     finally:
         tracker.stop()
         emissions_csv = pd.read_csv("emissions.csv")
