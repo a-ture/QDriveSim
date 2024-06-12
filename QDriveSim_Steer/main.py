@@ -27,7 +27,7 @@ def run():
         model = DQN(num_actions, state_dim, in_channels, device)
 
         # this only works if you have a model in your weights folder. Replace this by that file
-        model.load('weights_non_binary_da_binary/model_ep_1000')
+        model.load('weights/model_ep_900')
 
         # set to True if you want to run with pygame
         env = SimEnv(visuals=True, **env_params)
@@ -57,7 +57,7 @@ def run_binary():
         model = model_binary.DQN(num_actions, state_dim, in_channels, device)
 
         # this only works if you have a model in your weights folder. Replace this by that file
-        model.load('weights/model_ep_1000')
+        model.load('weights_binaria_1400/model_ep_1400')
 
         # set to True if you want to run with pygame
         env = SimEnv(visuals=True, **env_params)
@@ -71,4 +71,4 @@ def run_binary():
 
 
 if __name__ == "__main__":
-    run()
+    run_binary()
