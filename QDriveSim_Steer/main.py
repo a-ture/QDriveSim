@@ -72,3 +72,12 @@ def run_binary():
 
 if __name__ == "__main__":
     run_binary()
+
+# Addestramento rete binaria: 14 ore di 1.093298 kWh  di cui: Energy consumed for RAM : 0.141213 kWh. RAM Power : 11.67989730834961 W
+#                                                             Energy consumed for all GPUs : 0.438048 kWh. Total GPU Power : 35.15487607311413 W
+#                                                             Energy consumed for all CPUs : 0.514038 kWh. Total CPU Power : 42.5 W
+#
+#
+# Addestramento rete non binaria: 26 ore: 2.072642 kWh tot di cui : Energy consumed for RAM : 0.304728 kWh. RAM Power : 11.67989730834961 W
+#                                                                   Energy consumed for all GPUs : 0.658512 kWh. Total GPU Power : 38.02060103683682 W
+#                                                                   Energy consumed for all CPUs : 1.109402 kWh. Total CPU Power : 42.5 W
