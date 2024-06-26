@@ -1,12 +1,10 @@
-import os
-
 import torch
 
 from DQN_Control.replay_buffer import ReplayBuffer
 from DQN_Control.model import DQN
 
 from config import env_params, action_map_steer, action_map_throttle
-from utils import *
+
 from environment import SimEnv
 
 
@@ -25,7 +23,7 @@ def run():
         model = DQN(num_actions_steer, num_actions_throttle, state_dim, in_channels, device)
 
         # this only works if you have a model in your weights folder. Replace this by that file
-        model.load('weights/model_ep_1400')
+        model.load('weights/model_ep_1000')
 
         # set to True if you want to run with pygame
         env = SimEnv(visuals=True, **env_params)

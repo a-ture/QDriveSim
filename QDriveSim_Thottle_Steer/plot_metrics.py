@@ -111,8 +111,6 @@ def calculate_metrics_means(file_path):
     # Carica i dati
     data = pd.read_csv(file_path)
 
-
-
     # Filtra le colonne numeriche
     numeric_data = data.select_dtypes(include=[float, int])
 
@@ -130,4 +128,4 @@ def calculate_metrics_means(file_path):
     print(metrics_means_latex)
 
 
-calculate_metrics_means('episode_metrics non ha imparato .csv')
+calculate_metrics_means('metricheCARLA/episode_metrics non ha imparato .csv')

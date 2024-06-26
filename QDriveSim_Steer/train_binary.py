@@ -3,6 +3,7 @@ import pandas as pd
 import torch
 from codecarbon import OfflineEmissionsTracker
 
+from DQN_Control import model_layer_binary
 from DQN_Control.model_binary import DQN
 from DQN_Control.replay_buffer import ReplayBuffer
 from config import action_map, env_params
@@ -11,7 +12,40 @@ from utils import *
 from environment import SimEnv
 
 
-def run(logger):
+def run_layer_binary(logger):
+    try:
+        buffer_size = 1e4
+        batch_size = 32
+        state_dim = (5, 128, 128)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        num_actions = len(action_map)
+        in_channels = 5
+        episodes = 1001
+        model_params = {
+            'num_actions_steer': num_actions,
+            'state_dim': state_dim,
+            'in_channels': in_channels,
+        }
+
+        # Log dei parametri dell'ambiente e del modello
+        log_params(logger, env_params, title="Ambiente - Parametri")
+        write_separator(logger)
+        log_params(logger, model_params, title="Modello - Parametri")
+        replay_buffer = ReplayBuffer(state_dim, batch_size, buffer_size, device)
+        model = model_layer_binary.DQN(num_actions, state_dim, in_channels, device)
+
+        env = SimEnv(visuals=True, **env_params)
+
+        for ep in range(episodes):
+            env.create_actors()
+            env.generate_episode(model, replay_buffer, ep, action_map, eval=False)
+            env.reset()
+
+    finally:
+        env.quit()
+
+
+def run_binary(logger):
     try:
         buffer_size = 1e4
         batch_size = 32
@@ -51,7 +85,7 @@ if __name__ == "__main__":
     tracker = OfflineEmissionsTracker(country_iso_code="ITA")
     tracker.start()
     try:
-        run(logger)
+        run_binary(logger)  # cambiare a seconda del tipo di addestramento che si vuole fare
         tracker.stop()
     finally:
         tracker.stop()

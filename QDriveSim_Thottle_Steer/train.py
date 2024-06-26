@@ -85,4 +85,3 @@ if __name__ == "__main__":
         logger.info(f"Tempo totale di addestramento: {total_training_time:.2f} secondi")
         close_loggers([logger])
         del logger
-
