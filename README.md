@@ -77,10 +77,6 @@ Per utilizzare il progetto, seguire questi passaggi:
        ```sh
        python QDriveSim_Steer/train_binary.py
        ```
-        Eseguire lo script `train.py` per avviare l'addestramento della rete non binaria:
-       ```sh
-       python QDriveSim_Steer/train.py
-       ```
      - **Valutazione del modello:** Eseguire lo script `main.py` per valutare il modello addestrato:
        ```sh
        python QDriveSim_Steer/main.py
