@@ -17,7 +17,7 @@ def binarize_model_weights(model):
         if 'weight' in name:
             param.data = binarize(param.data)
 
-#binarizzazione dei pesi 
+#binarizzazione dei pesi
 def run():
     try:
         buffer_size = 1e4
