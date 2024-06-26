@@ -25,7 +25,7 @@ def run():
         model = DQN(num_actions_steer, num_actions_brake, num_actions_throttle, state_dim, in_channels, device)
 
         # Caricamento dei pesi del modello addestrato
-        model.load('weights/model_ep_950')
+        model.load('weights/model_ep_900')
 
         # Impostazione dell'ambiente di simulazione
         env = SimEnv(visuals=True, **env_params)

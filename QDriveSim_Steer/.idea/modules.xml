@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/self_driving_agent.iml" filepath="$PROJECT_DIR$/.idea/self_driving_agent.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/QDriveSim_Steer.iml" filepath="$PROJECT_DIR$/.idea/QDriveSim_Steer.iml" />
     </modules>
   </component>
 </project>
