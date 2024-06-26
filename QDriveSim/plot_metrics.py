@@ -7,44 +7,41 @@ def plot_episode_metrics(file_path):
     # Carica i dati
     data = pd.read_csv(file_path)
 
-    # Definisci i colori personalizzati
-    colors = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#f78c6b', "#073b4c"]
-
     # Configura la figura e gli assi
     fig, axs = plt.subplots(3, 2, figsize=(15, 15))
 
     # Grafico 1: Reward per episodio
-    axs[0, 0].plot(data['episode'], data['reward'], marker='o', color=colors[0])
+    axs[0, 0].plot(data['episode'], data['reward'], marker='o')
     axs[0, 0].set_title('Reward per Episode')
     axs[0, 0].set_xlabel('Episode')
     axs[0, 0].set_ylabel('Reward')
 
     # Grafico 2: Durata per episodio
-    axs[0, 1].plot(data['episode'], data['duration'], marker='o', color=colors[1])
+    axs[0, 1].plot(data['episode'], data['duration'], marker='o')
     axs[0, 1].set_title('Duration per Episode')
     axs[0, 1].set_xlabel('Episode')
     axs[0, 1].set_ylabel('Duration (s)')
 
     # Grafico 3: Collisioni per episodio
-    axs[1, 0].bar(data['episode'], data['collisions'], color=colors[2])
+    axs[1, 0].bar(data['episode'], data['collisions'], color='orange')
     axs[1, 0].set_title('Collisions per Episode')
     axs[1, 0].set_xlabel('Episode')
     axs[1, 0].set_ylabel('Number of Collisions')
 
     # Grafico 4: Invasioni di corsia per episodio
-    axs[1, 1].bar(data['episode'], data['lane_invasions'], color=colors[3])
+    axs[1, 1].bar(data['episode'], data['lane_invasions'], color='red')
     axs[1, 1].set_title('Lane Invasions per Episode')
     axs[1, 1].set_xlabel('Episode')
     axs[1, 1].set_ylabel('Number of Lane Invasions')
 
     # Grafico 5: Velocità media per episodio
-    axs[2, 0].plot(data['episode'], data['avg_speed'], marker='o', color=colors[4])
+    axs[2, 0].plot(data['episode'], data['avg_speed'], marker='o')
     axs[2, 0].set_title('Average Speed per Episode')
     axs[2, 0].set_xlabel('Episode')
     axs[2, 0].set_ylabel('Average Speed')
 
     # Grafico 6: Distanza totale per episodio
-    axs[2, 1].plot(data['episode'], data['total_distance'], marker='o', color=colors[5])
+    axs[2, 1].plot(data['episode'], data['total_distance'], marker='o')
     axs[2, 1].set_title('Total Distance per Episode')
     axs[2, 1].set_xlabel('Episode')
     axs[2, 1].set_ylabel('Total Distance')
@@ -114,13 +111,23 @@ def calculate_metrics_means(file_path):
     # Carica i dati
     data = pd.read_csv(file_path)
 
+
+
     # Filtra le colonne numeriche
     numeric_data = data.select_dtypes(include=[float, int])
 
     # Calcola i valori medi per ogni colonna numerica
     means = numeric_data.mean()
     print(means)
+    # Crea una stringa LaTeX con le medie
+    metrics_means_latex = ("reward {:.1f} & {:.1f} & duration {:.1f} &timesteps {:.1f} &"
+                           " collisions{:.1f} & lane_invasions{:.1f} & avg_speed {:.1f} &"
+                           " total_distance{:.1f} & max_speed {:1.f} \\\\").format(
+        means['reward'], means['duration'], means['timesteps'], means['collisions'],
+        means['lane_invasions'], means['avg_speed'], means['total_distance'], means['max_speed']
+    )
+
+    print(metrics_means_latex)
 
 
-# Esempio di utilizzo
-plot_episode_metrics('metricheCARLA/episode_metrics_5sensoritown3.csv')
+calculate_metrics_means('episode_metrics non ha imparato .csv')

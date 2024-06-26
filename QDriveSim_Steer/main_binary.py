@@ -3,11 +3,9 @@ import os
 from DQN_Control.binrarized_model import DQN
 from DQN_Control.replay_buffer import ReplayBuffer
 from config import action_map, env_params
-from utils import *
+
 from environment import SimEnv
 
-import torch
-import torch.nn.functional as F
 
 
 def binarize(tensor):
@@ -19,7 +17,7 @@ def binarize_model_weights(model):
         if 'weight' in name:
             param.data = binarize(param.data)
 
-
+#binarizzazione dei pesi 
 def run():
     try:
         buffer_size = 1e4

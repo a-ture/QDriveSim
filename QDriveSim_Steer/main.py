@@ -1,13 +1,11 @@
-import os
 
-import torch
 
 from DQN_Control import model_binary
 from DQN_Control.model import DQN
 from DQN_Control.replay_buffer import ReplayBuffer
 
 from config import action_map, env_params
-from utils import *
+
 from environment import SimEnv
 
 
@@ -27,7 +25,7 @@ def run():
         model = DQN(num_actions, state_dim, in_channels, device)
 
         # this only works if you have a model in your weights folder. Replace this by that file
-        model.load('weights/model_ep_900')
+        model.load('weights/model_ep_1000')
 
         # set to True if you want to run with pygame
         env = SimEnv(visuals=True, **env_params)
@@ -57,7 +55,7 @@ def run_binary():
         model = model_binary.DQN(num_actions, state_dim, in_channels, device)
 
         # this only works if you have a model in your weights folder. Replace this by that file
-        model.load('weights_binaria_1400/model_ep_1400')
+        model.load('weights/model_ep_1000')
 
         # set to True if you want to run with pygame
         env = SimEnv(visuals=True, **env_params)
@@ -73,6 +71,7 @@ def run_binary():
 if __name__ == "__main__":
     run_binary()
 
+
 # Addestramento rete binaria: 14 ore di 1.093298 kWh  di cui: Energy consumed for RAM : 0.141213 kWh. RAM Power : 11.67989730834961 W
 #                                                             Energy consumed for all GPUs : 0.438048 kWh. Total GPU Power : 35.15487607311413 W
 #                                                             Energy consumed for all CPUs : 0.514038 kWh. Total CPU Power : 42.5 W
@@ -81,3 +80,4 @@ if __name__ == "__main__":
 # Addestramento rete non binaria: 26 ore: 2.072642 kWh tot di cui : Energy consumed for RAM : 0.304728 kWh. RAM Power : 11.67989730834961 W
 #                                                                   Energy consumed for all GPUs : 0.658512 kWh. Total GPU Power : 38.02060103683682 W
 #                                                                   Energy consumed for all CPUs : 1.109402 kWh. Total CPU Power : 42.5 W
+

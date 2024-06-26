@@ -19,9 +19,11 @@ action_map_brake = {i: x for i, x in enumerate(action_values_brake)}
 num_throttle_levels = 15
 max_throttle = 1
 action_values_throttle = np.linspace(0, max_throttle, num_throttle_levels + 1)  # Crea intervalli regolari
+print(action_values_throttle)
+
 # escludendo lo 0
 action_map_throttle = {i: x for i, x in enumerate(action_values_throttle)}
-
+print(action_values_brake)
 # Definizione dei parametri dell'ambiente
 env_params = {
     'target_speed': 30,  # Velocità target dell'auto
