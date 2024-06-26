@@ -65,6 +65,10 @@ Per utilizzare il progetto, seguire questi passaggi:
      - Windows: `your-path-to/CARLA_0.9.15/WindowsNoEditor/CarlaUE4.exe`
      - Linux: `your-path-to/CARLA_0.9.15/./CarlaUE4.sh`
      - [opzionale] Per utilizzare meno risorse, aggiungere questi flag: `-windowed -ResX=32 -ResY=32 --quality-level=Low`.
+   - Lanciare il file `initial_setup.py` per completare la configurazione iniziale:
+     ```sh
+     python initial_setup.py
+     ```
 
 2. **Selezione del progetto:**
    - Selezionare l'architettura da utilizzare per l'addestramento. Ad esempio, se si vuole utilizzare l'architettura **QDriveSim_Steer**, procedere come segue:
