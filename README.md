@@ -23,7 +23,7 @@ Questo lavoro esplora l'uso di reti neurali binarie *(BNN)* per migliorare l'eff
 ## Installazione
 
 Prima di eseguire qualsiasi codice da questo repository, è necessario:
-1. **Clonare questo repository**: `git clone https://github.com/a-ture/AutoGuidaAutonoma`
+1. **Clonare questo repository**: `git clone https://github.com/a-ture/QDriveSim`
 2. **Scaricare CARLA 0.9.15** dal loro repository GitHub, [qui](https://github.com/carla-simulator/carla/releases/tag/0.9.15/) dove è possibile trovare i binari precompilati pronti per l'uso. Fare riferimento a [carla-quickstart](https://carla.readthedocs.io/en/latest/start_quickstart/) per ulteriori informazioni.
 3. **Installare i binding Python di CARLA** per poter gestire CARLA dal codice Python. Assicurarsi di utilizzare un ambiente virtuale Anaconda, aprire il terminale e digitare:
 ```sh
@@ -52,8 +52,8 @@ L'architettura del progetto  è la seguente:
 ## Organizzazione delle Cartelle
 - **TestRequirements:** Include tutti i requisiti software necessari per riprodurre il progetto. 
 - **Documents:**  Contiene tutta la documentazione e i lavori correlati che sono stati considerati nello sviluppo del progetto. Questa cartella include articoli di ricerca, riferimenti bibliografici, e altre risorse utili per comprendere il contesto e il background teorico del progetto..
-- **Automotive:**  Contiene un'architettura basata su CNN che produce in output i valori di *steer* (sterzata), *throttle*(accelerazione) e *brake* (frenata). Questa cartella include gli script e i modelli utilizzati per addestrare e valutare questa configurazione specifica.
-- **QDriveSim:** Contiene un'architettura basata su CNN che produce in output i valori di *steer*  e *throttle*. Questa cartella include gli script e i modelli per l'addestramento e la valutazione di questa configurazione. 
+- **QDriveSim_Brake_Throttle_Steer:**  Contiene un'architettura basata su CNN che produce in output i valori di *steer* (sterzata), *throttle*(accelerazione) e *brake* (frenata). Questa cartella include gli script e i modelli utilizzati per addestrare e valutare questa configurazione specifica.
+- **QDriveSim_Throttle_Steer:** Contiene un'architettura basata su CNN che produce in output i valori di *steer*  e *throttle*. Questa cartella include gli script e i modelli per l'addestramento e la valutazione di questa configurazione. 
 - **QDriveSim_Steer:** Contiene un'architettura basata su CNN che produce in output il valore di *steer*. Questa cartella include gli script e i modelli per l'addestramento e la valutazione di questa configurazione. Inoltre, qui sono presenti le versioni binarizzate di questa architettura, implementate in tre modi diversi: binarizzazione dei soli layer convoluzionali, binarizzazione completa (i layer convuluzionali, le funzioni ReLU e di perdita), e binarizzazione dei pesi della rete già addestrata. Queste versioni binarizzate mirano a migliorare l'efficienza computazionale mantenendo buone prestazioni di guida. 
    
 ## Guida all'Utilizzo 
@@ -76,15 +76,19 @@ Per utilizzare il progetto, seguire questi passaggi:
        ```sh
        python QDriveSim_Steer/train.py
        ```
-     - **Addestramento della rete binaria:**
-       Eseguire lo script `train_binary.py` per avviare l'addestramento della rete con i layer convoluzionali binari:
+     - **Addestramento della rete binaria:** Eseguire lo script `train_binary.py` per avviare l'addestramento della rete nella configurazione con layer convoluzionali binari o nella configurazione completamente binarizzata:
        ```sh
        python QDriveSim_Steer/train_binary.py
        ```
-     - **Valutazione del modello:** Eseguire lo script `main.py` per valutare il modello addestrato:
+     - **Valutazione del modello:** Eseguire lo script `main.py` per valutare il modello addestrato nelle diverse configurazioni (layer binari, layer binari con ReLU e funzione di perdita binarizzati, o nella forma non binarizzata):
        ```sh
        python QDriveSim_Steer/main.py
        ```
+     - **Valutazione del modello con pesi binarizzati:** Eseguire lo script `main_weights_binary.py` per valutare il modello addestrato con i pesi binarizzati:
+       ```sh
+       python QDriveSim_Steer/main_weights_binary.py
+       ```
+
 
 3. **Analisi dei risultati:**
    - I risultati dell'addestramento e della valutazione verranno salvati in file di log e file CSV.
@@ -94,8 +98,8 @@ Per utilizzare il progetto, seguire questi passaggi:
 ## Risultati
 I dettagli specifici per ogni architettura possono essere trovati nelle seguenti cartelle:
 
-- **Automotive:** Include i risultati dell'architettura basata su CNN che produce in output i valori di *steer*, *throttle* e *brake*.
-- **QDriveSim:** Include i risultati dell'architettura basata su CNN che produce in output i valori di *steer* e *throttle*.
+- **QDriveSim_Brake_Throttle_Steer:** Include i risultati dell'architettura basata su CNN che produce in output i valori di *steer*, *throttle* e *brake*.
+- **QDriveSim_Throttle_Steer:** Include i risultati dell'architettura basata su CNN che produce in output i valori di *steer* e *throttle*.
 - **QDriveSim_Steer:** Include i risultati dell'architettura basata su CNN che produce in output il valore di *steer*. Questa cartella contiene anche le versioni binarizzate dell'architettura, implementate in tre modi diversi: binarizzazione dei soli layer convoluzionali, binarizzazione completa (inclusi i layer convoluzionali, le funzioni ReLU e di perdita), e binarizzazione dei pesi della rete già addestrata.
 
 ### Configurazione hardware
