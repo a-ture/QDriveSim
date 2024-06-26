@@ -32,7 +32,7 @@ def run():
         model = DQN(num_actions, state_dim, in_channels, device, use_binarized=True)
 
         # Load pre-trained model weights
-        model.load('weights_non_binary_da_binary/model_ep_1000')
+        model.load('pesi/weights_binarizzati/model_ep_1000')
 
         # Binarize the weights in the model
         binarize_model_weights(model.Q)
