@@ -102,6 +102,24 @@ I dettagli specifici per ogni architettura possono essere trovati nelle seguenti
 - **QDriveSim_Throttle_Steer:** Include i risultati dell'architettura basata su CNN che produce in output i valori di *steer* e *throttle*.
 - **QDriveSim_Steer:** Include i risultati dell'architettura basata su CNN che produce in output il valore di *steer*. Questa cartella contiene anche le versioni binarizzate dell'architettura, implementate in tre modi diversi: binarizzazione dei soli layer convoluzionali, binarizzazione completa (inclusi i layer convoluzionali, le funzioni ReLU e di perdita), e binarizzazione dei pesi della rete già addestrata.
 
+
+### Video dimostrativi
+
+### DQN Training Results with Standard CNN
+Questo video mostra i risultati dell'addestramento di un sistema DQN con una CNN standard. Vengono evidenziate le performance del modello durante l'addestramento.
+
+[![Guarda il video](https://img.youtube.com/vi/WoANY3h_YLI/0.jpg)](https://www.youtube.com/watch?v=WoANY3h_YLI)
+
+### DQN Training Results with Binary CNN Layers
+Questo video dimostra i risultati dell'addestramento di un sistema DQN con una CNN che utilizza layer convoluzionali binari. Guarda il video per vedere le performance del modello.
+
+[![Guarda il video](https://img.youtube.com/vi/WoANY3h_YLI/0.jpg)](https://www.youtube.com/watch?v=WoANY3h_YLI)
+
+### DQN Training Results with Fully Binary CNN, ReLU, and Binary Loss
+Questo video presenta i risultati dell'addestramento di un sistema DQN con una CNN completamente binarizzata, inclusi i layer convoluzionali, le funzioni ReLU e la funzione di perdita binaria. Osserva come questa configurazione influisce sulle performance del modello.
+
+[![Guarda il video](https://img.youtube.com/vi/oorUd1HnNUw/0.jpg)](https://www.youtube.com/watch?v=oorUd1HnNUw)
+
 ### Configurazione hardware
 Gli esperimenti sono stati eseguiti su un sistema con la seguente configurazione hardware:
 
