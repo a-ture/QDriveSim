@@ -126,9 +126,3 @@ Gli esperimenti sono stati eseguiti su un sistema con la seguente configurazione
 - **CPU:** *Ryzen 5 7600* (Potenza 42.5 W).
 - **GPU:** *NVIDIA GeForce RTX 4060Ti* con 16 GB di RAM dedicata (Potenza 50.078 W).
 - **RAM:** *32 GB* (Potenza 11.67 W).
-
-## Contributors 
-<a href="https://github.com/raffaellaspagnuolo/WoodLot/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=raffaellaspagnuolo/WoodLot" />
-</a>
-
